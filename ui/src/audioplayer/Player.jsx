@@ -126,7 +126,15 @@ const Player = () => {
   }, [playerState.queue, playerState.savedPlayIndex])
 
   const visible = authenticated && playerState.queue.length > 0
-  const isRadio = playerState.current?.isRadio || false
+  // isRadio also covers non-library "external stream" items (e.g. Tidal preview tracks), which
+  // reuse the radio queue-item shape to skip Navidrome's own stream resolution/playback
+  // reporting. Unlike a live radio stream, those have a known, finite duration and are seekable
+  // (the proxy forwards Range requests), so only hide the seek bar for genuinely unseekable
+  // streams - i.e. when the player hasn't resolved a finite duration.
+  const currentInfo = playerState.current || {}
+  const isRadio =
+    !!currentInfo.isRadio &&
+    !(Number.isFinite(currentInfo.duration) && currentInfo.duration > 0)
   const classes = useStyle({
     isRadio,
     visible,

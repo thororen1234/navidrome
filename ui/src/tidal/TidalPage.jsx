@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useDispatch } from 'react-redux'
 import { Title, useNotify, useTranslate } from 'react-admin'
 import {
   Avatar,
@@ -25,7 +26,7 @@ import MusicNoteIcon from '@material-ui/icons/MusicNote'
 import AlbumIcon from '@material-ui/icons/Album'
 import { httpClient } from '../dataProvider'
 import { baseUrl } from '../utils'
-import { usePlayer } from './usePlayer'
+import { setTrack, playTracks } from '../actions'
 import DownloadButton from './DownloadButton'
 
 const msToTime = (seconds) => {
@@ -45,6 +46,24 @@ const coverArtUrl = (coverArt, size) =>
       )
     : undefined
 
+const streamUrl = (id) =>
+  baseUrl(`/api/tidal/stream/${id}?jwt=${localStorage.getItem('token')}`)
+
+// toQueueItem shapes a Tidal track into the same "external stream" item Navidrome's radio
+// stations use (see radio/helper.jsx): isRadio: true routes it through the player's queue
+// without Navidrome's own subsonic stream resolution or playback-reporting, both of which
+// assume a local media file id.
+const toQueueItem = (track) => ({
+  id: track.id,
+  name: track.title,
+  title: track.title,
+  artist: track.artist,
+  album: track.album,
+  streamUrl: streamUrl(track.id),
+  cover: coverArtUrl(track.coverArt, 300),
+  isRadio: true,
+})
+
 const TrackRow = ({ track, onPlay }) => (
   <ListItem divider>
     <ListItemAvatar>
@@ -58,7 +77,7 @@ const TrackRow = ({ track, onPlay }) => (
         }`}
     />
     <ListItemSecondaryAction>
-      <IconButton size="small" onClick={() => onPlay(track.id)}>
+      <IconButton size="small" onClick={() => onPlay(track)}>
         <PlayArrowIcon fontSize="small" />
       </IconButton>
       <DownloadButton tidalId={track.id} tidalKind="track" />
@@ -193,7 +212,7 @@ const ArtistDetail = ({ artist, onSelectAlbum, onPlayAlbum, onBack }) => {
 const TidalPage = () => {
   const translate = useTranslate()
   const notify = useNotify()
-  const player = usePlayer()
+  const dispatch = useDispatch()
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState(null)
@@ -231,9 +250,24 @@ const TidalPage = () => {
       })
   }
 
+  const playTrack = (track) => dispatch(setTrack(toQueueItem(track)))
+
   const playAlbum = (album) => {
     httpClient(`/api/tidal/album/${album.id}`)
-      .then(({ json }) => player.playAll((json.song || []).map((t) => t.id)))
+      .then(({ json }) => {
+        const tracks = json.song || []
+        if (!tracks.length) return
+        const data = {}
+        tracks.forEach((t) => {
+          data[t.id] = toQueueItem(t)
+        })
+        dispatch(
+          playTracks(
+            data,
+            tracks.map((t) => t.id),
+          ),
+        )
+      })
       .catch((error) => {
         notify(error.message || 'ra.page.error', { type: 'warning' })
       })
@@ -286,7 +320,7 @@ const TidalPage = () => {
           {!loading && current?.type === 'album' && (
             <AlbumDetail
               album={current.data}
-              onPlay={player.play}
+              onPlay={playTrack}
               onPlayAll={playAlbum}
               onBack={goBack}
             />
@@ -326,7 +360,7 @@ const TidalPage = () => {
                   <Typography variant="subtitle1">Songs</Typography>
                   <List dense>
                     {results.song.map((s) => (
-                      <TrackRow key={s.id} track={s} onPlay={player.play} />
+                      <TrackRow key={s.id} track={s} onPlay={playTrack} />
                     ))}
                   </List>
                 </>
@@ -344,17 +378,6 @@ const TidalPage = () => {
           )}
         </CardContent>
       </Card>
-
-      {player.src && (
-        // eslint-disable-next-line jsx-a11y/media-has-caption
-        <audio
-          src={player.src}
-          controls
-          autoPlay
-          onEnded={player.onEnded}
-          style={{ width: '100%', marginTop: 16 }}
-        />
-      )}
     </Box>
   )
 }
