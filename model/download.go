@@ -8,7 +8,7 @@ const (
 	DownloadToolYtDlp      DownloadTool = "yt-dlp"
 	DownloadToolScdl       DownloadTool = "scdl"
 	DownloadToolSpotdl     DownloadTool = "spotdl"
-	DownloadToolBandcampDl DownloadTool = "bandcamp-downloader"
+	DownloadToolBandcampDl DownloadTool = "bandcamp-dl"
 	DownloadToolKhinsider  DownloadTool = "khinsider"
 	DownloadToolTidal      DownloadTool = "tidal"
 )
@@ -24,7 +24,7 @@ const (
 )
 
 // Download is a single job in the downloader queue, submitted either as a raw URL for an
-// external tool (yt-dlp/scdl/spotdl/bandcamp-downloader) or as a Tidal track/album id.
+// external tool (yt-dlp/scdl/spotdl/bandcamp-dl/khinsider) or as a Tidal track/album id.
 type Download struct {
 	ID            string         `structs:"id" json:"id"`
 	Tool          DownloadTool   `structs:"tool" json:"tool"`

@@ -1,7 +1,3 @@
-// Package toolmgr implements the Downloader tab's "Install / Upgrade / Repair" buttons for the
-// external CLI tools (yt-dlp/scdl/spotdl/bandcamp-downloader). Every pip/pipx invocation uses a fixed
-// argv built from a hardcoded tool->package lookup table - the package name is never derived
-// from user input, so these one-click actions cannot be turned into arbitrary command execution.
 package toolmgr
 
 import (
@@ -26,13 +22,12 @@ var managedTools = []model.DownloadTool{
 	model.DownloadToolKhinsider,
 }
 
-// pipPackages is the only place a downloader tool maps to a pip package name.
 var pipPackages = map[model.DownloadTool]string{
 	model.DownloadToolYtDlp:      "yt-dlp",
 	model.DownloadToolScdl:       "scdl",
 	model.DownloadToolSpotdl:     "spotdl",
 	model.DownloadToolBandcampDl: "bandcamp-downloader",
-	model.DownloadToolKhinsider:  "khinsider",
+	model.DownloadToolKhinsider:  "khinsider-dl",
 }
 
 type Action string

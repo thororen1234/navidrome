@@ -14,7 +14,7 @@ import {
 import { httpClient } from '../dataProvider'
 import { useLibraries } from './useLibraries'
 
-const TOOLS = ['yt-dlp', 'scdl', 'spotdl', 'bandcamp-downloader', 'khinsider']
+const TOOLS = ['yt-dlp', 'scdl', 'spotdl', 'bandcamp-dl', 'khinsider']
 
 const SubmitForm = ({ onSubmitted }) => {
   const translate = useTranslate()

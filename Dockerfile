@@ -174,7 +174,7 @@ RUN apk add -U --no-cache python3 py3-pip pipx && \
     pipx install scdl && \
     pipx install spotdl && \
     pipx install bandcamp-downloader && \
-    pipx install khinsider
+    pipx install khinsider-dl
 
 # Copy navidrome binary (musl build for Docker, enables native libwebp)
 COPY --from=build-alpine /out/navidrome /app/

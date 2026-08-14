@@ -20,7 +20,7 @@ var spotdlProgress = regexp.MustCompile(`:\s*(\d+)%`)
 // tool's stdout. ok is false when the line carries no progress signal - callers should still
 // surface the raw line as a status message in that case if they want one.
 //
-// scdl and bandcamp-downloader have no reliable machine-parseable progress in their default output, so
+// scdl and bandcamp-dl have no reliable machine-parseable progress in their default output, so
 // they always return ok == false; jobs for those tools only ever report coarse queue state.
 func parseProgress(tool model.DownloadTool, line string) (pct float64, msg string, ok bool) {
 	line = strings.TrimSpace(line)
