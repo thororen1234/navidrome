@@ -2,6 +2,6 @@ import CloudDownloadIcon from '@material-ui/icons/CloudDownload'
 import DownloaderPage from './DownloaderPage'
 
 export default {
-  icon: CloudDownloadIcon,
+  icon: <CloudDownloadIcon />,
   list: DownloaderPage,
 }
