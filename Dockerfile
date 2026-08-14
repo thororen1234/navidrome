@@ -173,7 +173,7 @@ RUN apk add -U --no-cache python3 py3-pip pipx && \
     pipx install yt-dlp && \
     pipx install scdl && \
     pipx install spotdl && \
-    pipx install bandcamp-dl && \
+    pipx install bandcamp-downloader && \
     pipx install khinsider
 
 # Copy navidrome binary (musl build for Docker, enables native libwebp)

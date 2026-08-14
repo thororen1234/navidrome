@@ -288,7 +288,7 @@ type pluginsOptions struct {
 }
 
 // downloaderOptions configures the Downloader tab: a queue that shells out to external CLI
-// tools (yt-dlp/scdl/spotdl/bandcamp-dl/khinsider) to fetch media into a library folder.
+// tools (yt-dlp/scdl/spotdl/bandcamp-downloader/khinsider) to fetch media into a library folder.
 // Disabled by default, since it bundles one-click downloaders with real ToS/DMCA exposure.
 type downloaderOptions struct {
 	Enabled        bool
@@ -297,7 +297,7 @@ type downloaderOptions struct {
 	YtDlpPath      string // "" = resolve "yt-dlp" on PATH
 	ScdlPath       string // "" = resolve "scdl" on PATH
 	SpotdlPath     string // "" = resolve "spotdl" on PATH
-	BandcampDlPath string // "" = resolve "bandcamp-dl" on PATH
+	BandcampDlPath string // "" = resolve "bandcamp-downloader" on PATH
 	KhinsiderPath  string // "" = resolve "khinsider" on PATH
 	PipPath        string // "" = resolve "pip3"/"pip" on PATH
 	UsePipx        bool   // use pipx install/upgrade/reinstall instead of pip install -U/--force-reinstall

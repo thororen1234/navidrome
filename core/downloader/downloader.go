@@ -1,5 +1,5 @@
 // Package downloader implements the Downloader tab's job queue: submitting yt-dlp/scdl/spotdl/
-// bandcamp-dl/khinsider/Tidal jobs, and a background worker that executes them into a library
+// bandcamp-downloader/khinsider/Tidal jobs, and a background worker that executes them into a library
 // folder.
 package downloader
 
@@ -16,7 +16,7 @@ var (
 	ErrInvalidRequest = errors.New("invalid download request")
 )
 
-// SubmitRequest describes a new job. For tool-based jobs (yt-dlp/scdl/spotdl/bandcamp-dl/
+// SubmitRequest describes a new job. For tool-based jobs (yt-dlp/scdl/spotdl/bandcamp-downloader/
 // khinsider), SourceURL is required. For Tool == model.DownloadToolTidal, TidalID and TidalKind
 // are required instead.
 type SubmitRequest struct {

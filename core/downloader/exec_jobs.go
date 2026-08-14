@@ -42,7 +42,7 @@ func toolPathConfig(tool model.DownloadTool) (configured, fallback string) {
 	case model.DownloadToolSpotdl:
 		return conf.Server.Downloader.SpotdlPath, "spotdl"
 	case model.DownloadToolBandcampDl:
-		return conf.Server.Downloader.BandcampDlPath, "bandcamp-dl"
+		return conf.Server.Downloader.BandcampDlPath, "bandcamp-downloader"
 	case model.DownloadToolKhinsider:
 		return conf.Server.Downloader.KhinsiderPath, "khinsider"
 	}
@@ -73,7 +73,7 @@ func buildArgs(tool model.DownloadTool, bin, sourceURL, outDir string) []string 
 	return nil
 }
 
-// runExecJob shells out to an external downloader tool (yt-dlp/scdl/spotdl/bandcamp-dl/khinsider),
+// runExecJob shells out to an external downloader tool (yt-dlp/scdl/spotdl/bandcamp-downloader/khinsider),
 // following core/ffmpeg's safe-exec discipline: argv is always a Go slice passed straight to
 // exec.CommandContext, never a shell string. onProgress is called for each stdout line that
 // parseProgress recognizes as a progress update.

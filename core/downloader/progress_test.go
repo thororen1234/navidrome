@@ -33,7 +33,7 @@ var _ = Describe("parseProgress", func() {
 		Expect(ok).To(BeFalse())
 	})
 
-	It("reports no progress for bandcamp-dl output", func() {
+	It("reports no progress for bandcamp-downloader output", func() {
 		_, _, ok := parseProgress(model.DownloadToolBandcampDl, "Downloading album art...")
 		Expect(ok).To(BeFalse())
 	})

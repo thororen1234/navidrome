@@ -14,7 +14,7 @@ import {
 import { httpClient } from '../dataProvider'
 import { useLibraries } from './useLibraries'
 
-const TOOLS = ['yt-dlp', 'scdl', 'spotdl', 'bandcamp-dl', 'khinsider']
+const TOOLS = ['yt-dlp', 'scdl', 'spotdl', 'bandcamp-downloader', 'khinsider']
 
 const SubmitForm = ({ onSubmitted }) => {
   const translate = useTranslate()
@@ -48,8 +48,8 @@ const SubmitForm = ({ onSubmitted }) => {
       .catch((error) => {
         notify(
           error.body?.error ||
-            error.message ||
-            'resources.downloader.messages.submitError',
+          error.message ||
+          'resources.downloader.messages.submitError',
           { type: 'warning' },
         )
       })
