@@ -145,7 +145,8 @@ const QueueTable = ({ tableRef }) => {
                   ) : null}
                 </TableCell>
                 <TableCell align="right">
-                  {job.status === 'queued' && (
+                  {(job.status === 'queued' ||
+                    job.status === 'downloading') && (
                     <Tooltip
                       title={translate('resources.downloader.actions.cancel', {
                         _: 'Cancel',

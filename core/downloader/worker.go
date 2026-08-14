@@ -3,6 +3,7 @@ package downloader
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -20,21 +21,24 @@ const workerPollInterval = 5 * time.Second
 // Worker drains the download queue: one job at a time per concurrency slot, dispatched to
 // either an external CLI tool (exec_jobs.go) or the Tidal client (tidal_job.go). There is no
 // auto-retry - these are large one-shot jobs, not idempotent cheap lookups, so a failure just
-// leaves the job in DownloadStatusError for the user to resubmit.
+// leaves the job in DownloadStatusError for the user to resubmit. reg lets Service.Cancel stop a
+// job that's already running (see registry.go).
 type Worker struct {
 	ds          model.DataStore
 	scanner     model.Scanner
 	broker      events.Broker
 	tidal       TidalDownloader // nil until Tidal is configured; tidal jobs fail cleanly until then
+	reg         *registry
 	concurrency int
 }
 
-func NewWorker(ds model.DataStore, scanner model.Scanner, broker events.Broker, tidal TidalDownloader) *Worker {
+func NewWorker(ds model.DataStore, scanner model.Scanner, broker events.Broker, tidal TidalDownloader, reg *registry) *Worker {
 	return &Worker{
 		ds:          ds,
 		scanner:     scanner,
 		broker:      broker,
 		tidal:       tidal,
+		reg:         reg,
 		concurrency: max(1, conf.Server.Downloader.MaxConcurrent),
 	}
 }
@@ -98,6 +102,22 @@ func (w *Worker) process(ctx context.Context, item model.Download) {
 	}
 	w.broadcast(ctx, item.ID, model.DownloadStatusDownloading, 0, "", "")
 
+	// jobCtx (not ctx) is what actually runs the download, so a cancellation request or timeout
+	// only ever stops this one job - the DB writes below always use ctx, the worker's own
+	// long-lived context, so they succeed even after jobCtx has been canceled.
+	var jobCtx context.Context
+	var cancelJob context.CancelFunc
+	if conf.Server.Downloader.JobTimeout > 0 {
+		jobCtx, cancelJob = context.WithTimeout(ctx, conf.Server.Downloader.JobTimeout)
+	} else {
+		jobCtx, cancelJob = context.WithCancel(ctx)
+	}
+	w.reg.register(item.ID, cancelJob)
+	defer func() {
+		cancelJob()
+		w.reg.unregister(item.ID)
+	}()
+
 	targetDir, err := resolveTargetDir(ctx, w.ds, &item)
 	if err != nil {
 		w.fail(ctx, item.ID, err)
@@ -114,17 +134,26 @@ func (w *Worker) process(ctx context.Context, item model.Download) {
 	var moved int
 	var lastPath string
 	if item.Tool == model.DownloadToolTidal {
-		moved, lastPath, err = w.runTidalJob(ctx, &item, targetDir, onProgress)
+		moved, lastPath, err = w.runTidalJob(jobCtx, &item, targetDir, onProgress)
 	} else {
 		staging := stagingDirFor(&item)
-		if err = runExecJob(ctx, &item, staging, onProgress); err == nil {
+		if err = runExecJob(jobCtx, &item, staging, onProgress); err == nil {
 			moved, lastPath, err = moveJobOutput(staging, targetDir)
 		} else {
 			_ = os.RemoveAll(staging)
 		}
 	}
 	if err != nil {
-		w.fail(ctx, item.ID, err)
+		switch {
+		case errors.Is(jobCtx.Err(), context.Canceled):
+			// A user-initiated cancel (registry.cancel) always uses plain context.Canceled,
+			// whether jobCtx itself is a WithCancel or a WithTimeout context.
+			w.markCanceled(ctx, item.ID)
+		case errors.Is(jobCtx.Err(), context.DeadlineExceeded):
+			w.fail(ctx, item.ID, fmt.Errorf("timed out after %s", conf.Server.Downloader.JobTimeout))
+		default:
+			w.fail(ctx, item.ID, err)
+		}
 		return
 	}
 	if moved == 0 {
@@ -150,6 +179,14 @@ func (w *Worker) fail(ctx context.Context, id string, err error) {
 		log.Warn(ctx, "Downloader: could not mark job failed", "id", id, e)
 	}
 	w.broadcast(ctx, id, model.DownloadStatusError, 0, "", msg)
+}
+
+func (w *Worker) markCanceled(ctx context.Context, id string) {
+	log.Info(ctx, "Downloader: job canceled", "id", id)
+	if e := w.ds.Download(ctx).MarkCanceled(id); e != nil {
+		log.Warn(ctx, "Downloader: could not mark job canceled", "id", id, e)
+	}
+	w.broadcast(ctx, id, model.DownloadStatusCanceled, 0, "", "")
 }
 
 func (w *Worker) broadcast(ctx context.Context, id string, status model.DownloadStatus, pct float64, msg, errMsg string) {

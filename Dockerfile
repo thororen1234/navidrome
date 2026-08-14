@@ -162,9 +162,19 @@ LABEL org.opencontainers.image.source="https://github.com/navidrome/navidrome"
 # - libwebp + symlinks: enables native WebP encoding via purego/dlopen
 RUN apk add -U --no-cache ffmpeg mpv sqlite libwebp libwebpdemux libwebpmux && \
     for lib in libwebp libwebpdemux libwebpmux; do \
-        target=$(ls /usr/lib/$lib.so.* 2>/dev/null | head -1) && \
-        [ -n "$target" ] && ln -sf "$target" /usr/lib/$lib.so; \
+    target=$(ls /usr/lib/$lib.so.* 2>/dev/null | head -1) && \
+    [ -n "$target" ] && ln -sf "$target" /usr/lib/$lib.so; \
     done
+
+ENV PIPX_HOME=/usr/local/pipx
+ENV PIPX_BIN_DIR=/usr/local/bin
+ENV ND_DOWNLOADER_USEPIPX=true
+RUN apk add -U --no-cache python3 py3-pip pipx && \
+    pipx install yt-dlp && \
+    pipx install scdl && \
+    pipx install spotdl && \
+    pipx install bandcamp-dl && \
+    pipx install khinsider
 
 # Copy navidrome binary (musl build for Docker, enables native libwebp)
 COPY --from=build-alpine /out/navidrome /app/

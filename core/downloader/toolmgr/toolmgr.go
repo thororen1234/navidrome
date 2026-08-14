@@ -23,6 +23,7 @@ var managedTools = []model.DownloadTool{
 	model.DownloadToolScdl,
 	model.DownloadToolSpotdl,
 	model.DownloadToolBandcampDl,
+	model.DownloadToolKhinsider,
 }
 
 // pipPackages is the only place a downloader tool maps to a pip package name.
@@ -31,6 +32,7 @@ var pipPackages = map[model.DownloadTool]string{
 	model.DownloadToolScdl:       "scdl",
 	model.DownloadToolSpotdl:     "spotdl",
 	model.DownloadToolBandcampDl: "bandcamp-dl",
+	model.DownloadToolKhinsider:  "khinsider",
 }
 
 type Action string

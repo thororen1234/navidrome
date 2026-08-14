@@ -10,7 +10,9 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
+	"github.com/navidrome/navidrome/conf"
 	"github.com/navidrome/navidrome/model"
 	"github.com/navidrome/navidrome/server/events"
 	"github.com/navidrome/navidrome/tests"
@@ -48,9 +50,21 @@ type fakeTidal struct {
 	content []byte
 	name    string
 	err     error
+	started chan struct{} // closed once DownloadTo begins, so a test can synchronize before canceling
+	block   chan struct{} // if non-nil, DownloadTo waits on this (or ctx.Done()) before returning
 }
 
-func (f *fakeTidal) DownloadTo(_ context.Context, _, _ string, w io.Writer) (string, error) {
+func (f *fakeTidal) DownloadTo(ctx context.Context, _, _ string, w io.Writer) (string, error) {
+	if f.started != nil {
+		close(f.started)
+	}
+	if f.block != nil {
+		select {
+		case <-f.block:
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
+	}
 	if f.err != nil {
 		return "", f.err
 	}
@@ -73,6 +87,7 @@ var _ = Describe("Worker", func() {
 	var ds *tests.MockDataStore
 	var scanner *tests.MockScanner
 	var broker *fakeEventBroker
+	var reg *registry
 	var libPath string
 	var ctx context.Context
 
@@ -83,6 +98,7 @@ var _ = Describe("Worker", func() {
 		}
 		scanner = tests.NewMockScanner()
 		broker = &fakeEventBroker{}
+		reg = NewRegistry()
 		ctx = context.Background()
 	})
 
@@ -93,7 +109,7 @@ var _ = Describe("Worker", func() {
 	}
 
 	It("completes a tidal track job and triggers a targeted rescan", func() {
-		w := NewWorker(ds, scanner, broker, &fakeTidal{content: []byte("audio-bytes"), name: "Song.flac"})
+		w := NewWorker(ds, scanner, broker, &fakeTidal{content: []byte("audio-bytes"), name: "Song.flac"}, reg)
 		d := newDownload(model.DownloadToolTidal, "track")
 
 		w.process(ctx, d)
@@ -125,7 +141,7 @@ var _ = Describe("Worker", func() {
 
 	It("extracts every file from a tidal album zip", func() {
 		zipBytes := zipOf(map[string]string{"01 Track.flac": "one", "02 Track.flac": "two"})
-		w := NewWorker(ds, scanner, broker, &fakeTidal{content: zipBytes})
+		w := NewWorker(ds, scanner, broker, &fakeTidal{content: zipBytes}, reg)
 		d := newDownload(model.DownloadToolTidal, "album")
 
 		w.process(ctx, d)
@@ -140,7 +156,7 @@ var _ = Describe("Worker", func() {
 	})
 
 	It("marks the job failed when the tidal client errors", func() {
-		w := NewWorker(ds, scanner, broker, &fakeTidal{err: errors.New("boom")})
+		w := NewWorker(ds, scanner, broker, &fakeTidal{err: errors.New("boom")}, reg)
 		d := newDownload(model.DownloadToolTidal, "track")
 
 		w.process(ctx, d)
@@ -153,7 +169,7 @@ var _ = Describe("Worker", func() {
 	})
 
 	It("fails cleanly when tidal is not configured", func() {
-		w := NewWorker(ds, scanner, broker, nil)
+		w := NewWorker(ds, scanner, broker, nil, reg)
 		d := newDownload(model.DownloadToolTidal, "track")
 
 		w.process(ctx, d)
@@ -164,8 +180,63 @@ var _ = Describe("Worker", func() {
 		Expect(got.Error).To(ContainSubstring("not configured"))
 	})
 
+	It("cancels a running job via the registry instead of letting it fail", func() {
+		started := make(chan struct{})
+		block := make(chan struct{})
+		w := NewWorker(ds, scanner, broker, &fakeTidal{started: started, block: block}, reg)
+		d := newDownload(model.DownloadToolTidal, "track")
+
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			w.process(ctx, d)
+		}()
+
+		Eventually(started).Should(BeClosed())
+		Expect(reg.cancel(d.ID)).To(BeTrue(), "job should still be registered as running")
+		Eventually(done).Should(BeClosed())
+
+		got, err := ds.Download(ctx).Get(d.ID)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(got.Status).To(Equal(model.DownloadStatusCanceled))
+
+		var sawCanceled bool
+		for _, e := range broker.getEvents() {
+			if evt, ok := e.(*events.DownloadStatus); ok && evt.Status == string(model.DownloadStatusCanceled) {
+				sawCanceled = true
+			}
+		}
+		Expect(sawCanceled).To(BeTrue())
+	})
+
+	It("marks a job that exceeds JobTimeout as failed, not canceled", func() {
+		prev := conf.Server.Downloader.JobTimeout
+		conf.Server.Downloader.JobTimeout = 20 * time.Millisecond
+		defer func() { conf.Server.Downloader.JobTimeout = prev }()
+
+		block := make(chan struct{}) // never closed: DownloadTo only returns via ctx timeout
+		w := NewWorker(ds, scanner, broker, &fakeTidal{block: block}, reg)
+		d := newDownload(model.DownloadToolTidal, "track")
+
+		w.process(ctx, d)
+
+		got, err := ds.Download(ctx).Get(d.ID)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(got.Status).To(Equal(model.DownloadStatusError))
+		Expect(got.Error).To(ContainSubstring("timed out"))
+	})
+
+	It("reports the job as no longer running once it has finished", func() {
+		w := NewWorker(ds, scanner, broker, &fakeTidal{content: []byte("x"), name: "x.flac"}, reg)
+		d := newDownload(model.DownloadToolTidal, "track")
+
+		w.process(ctx, d)
+
+		Expect(reg.cancel(d.ID)).To(BeFalse(), "a finished job should already be unregistered")
+	})
+
 	It("fails when the target library no longer exists", func() {
-		w := NewWorker(ds, scanner, broker, &fakeTidal{content: []byte("x"), name: "x.flac"})
+		w := NewWorker(ds, scanner, broker, &fakeTidal{content: []byte("x"), name: "x.flac"}, reg)
 		d := model.Download{Tool: model.DownloadToolTidal, TidalKind: "track", LibraryID: 99, RequestedBy: "admin"}
 		Expect(ds.Download(ctx).Enqueue(&d)).To(Succeed())
 

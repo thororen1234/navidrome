@@ -1,5 +1,6 @@
 // Package downloader implements the Downloader tab's job queue: submitting yt-dlp/scdl/spotdl/
-// bandcamp-dl/Tidal jobs, and a background worker that executes them into a library folder.
+// bandcamp-dl/khinsider/Tidal jobs, and a background worker that executes them into a library
+// folder.
 package downloader
 
 import (
@@ -15,9 +16,9 @@ var (
 	ErrInvalidRequest = errors.New("invalid download request")
 )
 
-// SubmitRequest describes a new job. For tool-based jobs (yt-dlp/scdl/spotdl/bandcamp-dl),
-// SourceURL is required. For Tool == model.DownloadToolTidal, TidalID and TidalKind are
-// required instead.
+// SubmitRequest describes a new job. For tool-based jobs (yt-dlp/scdl/spotdl/bandcamp-dl/
+// khinsider), SourceURL is required. For Tool == model.DownloadToolTidal, TidalID and TidalKind
+// are required instead.
 type SubmitRequest struct {
 	Tool      model.DownloadTool
 	SourceURL string
@@ -27,19 +28,22 @@ type SubmitRequest struct {
 	UserID    string
 }
 
-// Service is the synchronous half of the downloader: it validates and enqueues jobs. The
-// Worker drains the queue asynchronously.
+// Service is the synchronous half of the downloader: it validates and enqueues jobs, and can
+// cancel one - whether it's still queued or already downloading. The Worker drains the queue
+// and actually runs jobs asynchronously; Service and Worker share a *registry so Cancel can stop
+// a job that's mid-flight, not just remove one that hasn't started.
 type Service interface {
 	Submit(ctx context.Context, req SubmitRequest) (*model.Download, error)
 	Cancel(ctx context.Context, id string) error
 }
 
 type service struct {
-	ds model.DataStore
+	ds  model.DataStore
+	reg *registry
 }
 
-func NewService(ds model.DataStore) Service {
-	return &service{ds: ds}
+func NewService(ds model.DataStore, reg *registry) Service {
+	return &service{ds: ds, reg: reg}
 }
 
 func (s *service) Submit(ctx context.Context, req SubmitRequest) (*model.Download, error) {
@@ -63,15 +67,26 @@ func (s *service) Submit(ctx context.Context, req SubmitRequest) (*model.Downloa
 	return d, nil
 }
 
+// Cancel stops a job. A still-queued job is simply marked canceled. A downloading job is
+// stopped by canceling its running context (which kills the subprocess or aborts the in-flight
+// Tidal request); the worker itself observes that and writes the terminal "canceled" status, so
+// this never races the worker's own completion/failure write.
 func (s *service) Cancel(ctx context.Context, id string) error {
 	d, err := s.ds.Download(ctx).Get(id)
 	if err != nil {
 		return err
 	}
-	if d.Status != model.DownloadStatusQueued {
-		return fmt.Errorf("%w: job %s is %s, not queued", ErrInvalidRequest, id, d.Status)
+	switch d.Status {
+	case model.DownloadStatusQueued:
+		return s.ds.Download(ctx).MarkCanceled(id)
+	case model.DownloadStatusDownloading:
+		if s.reg.cancel(id) {
+			return nil
+		}
+		return fmt.Errorf("%w: job %s is downloading but not currently running", ErrInvalidRequest, id)
+	default:
+		return fmt.Errorf("%w: job %s is %s, cannot be canceled", ErrInvalidRequest, id, d.Status)
 	}
-	return s.ds.Download(ctx).MarkCanceled(id)
 }
 
 func validate(req SubmitRequest) error {
@@ -88,7 +103,8 @@ func validate(req SubmitRequest) error {
 		return nil
 	}
 	switch req.Tool {
-	case model.DownloadToolYtDlp, model.DownloadToolScdl, model.DownloadToolSpotdl, model.DownloadToolBandcampDl:
+	case model.DownloadToolYtDlp, model.DownloadToolScdl, model.DownloadToolSpotdl,
+		model.DownloadToolBandcampDl, model.DownloadToolKhinsider:
 	default:
 		return fmt.Errorf("%w: unknown tool %q", ErrInvalidRequest, req.Tool)
 	}

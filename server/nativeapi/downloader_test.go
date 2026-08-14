@@ -99,7 +99,7 @@ var _ = Describe("Downloader API", func() {
 		auth.Init(ds)
 
 		nativeRouter := New(ds, nil, nil, nil, tests.NewMockLibraryService(), tests.NewMockUserService(), nil, nil, nil,
-			downloader.NewService(ds), toolMgr, broker, nil)
+			downloader.NewService(ds, downloader.NewRegistry()), toolMgr, broker, nil)
 		router = server.JWTVerifier(nativeRouter)
 
 		adminUser = model.User{ID: "admin-1", UserName: "admin", Name: "Admin", IsAdmin: true, NewPassword: "adminpass"}

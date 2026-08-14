@@ -99,7 +99,7 @@ var _ = Describe("Tidal API", func() {
 		auth.Init(ds)
 
 		nativeRouter := New(ds, nil, nil, nil, tests.NewMockLibraryService(), tests.NewMockUserService(), nil, nil, nil,
-			downloader.NewService(ds), nil, nil, fakeTidal)
+			downloader.NewService(ds, downloader.NewRegistry()), nil, nil, fakeTidal)
 		router = server.JWTVerifier(nativeRouter)
 
 		adminUser = model.User{ID: "admin-1", UserName: "admin", Name: "Admin", IsAdmin: true, NewPassword: "adminpass"}

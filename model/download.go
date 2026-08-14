@@ -9,6 +9,7 @@ const (
 	DownloadToolScdl       DownloadTool = "scdl"
 	DownloadToolSpotdl     DownloadTool = "spotdl"
 	DownloadToolBandcampDl DownloadTool = "bandcamp-dl"
+	DownloadToolKhinsider  DownloadTool = "khinsider"
 	DownloadToolTidal      DownloadTool = "tidal"
 )
 
