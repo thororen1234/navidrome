@@ -413,6 +413,9 @@
         "configValue": "value"
       }
     },
+    "tidal": {
+      "name": "Tidal"
+    },
     "downloader": {
       "name": "Downloader",
       "fields": {

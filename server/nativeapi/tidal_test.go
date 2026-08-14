@@ -62,6 +62,21 @@ func (f *fakeTidalClient) DownloadTo(context.Context, string, string, io.Writer)
 	return "track.flac", f.err
 }
 
+func (f *fakeTidalClient) CoverArt(context.Context, string, string) (io.ReadCloser, http.Header, int, error) {
+	if f.err != nil {
+		return nil, nil, 0, f.err
+	}
+	h := f.streamHeader
+	if h == nil {
+		h = http.Header{}
+	}
+	status := f.streamStatus
+	if status == 0 {
+		status = http.StatusOK
+	}
+	return io.NopCloser(strings.NewReader(f.streamBody)), h, status, nil
+}
+
 var _ tidal.Client = (*fakeTidalClient)(nil)
 
 var _ = Describe("Tidal API", func() {

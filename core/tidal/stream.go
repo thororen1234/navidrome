@@ -33,6 +33,33 @@ func (c *client) Stream(ctx context.Context, id string, rangeHeader string) (io.
 	return resp.Body, resp.Header, resp.StatusCode, nil
 }
 
+// CoverArt proxies TidalSubsonic's getCoverArt endpoint. size, when non-empty, is forwarded
+// as-is so the caller can request a scaled-down image (per the Subsonic API's "size" param).
+func (c *client) CoverArt(ctx context.Context, id string, size string) (io.ReadCloser, http.Header, int, error) {
+	if !c.configured() {
+		return nil, nil, 0, ErrNotConfigured
+	}
+	params := c.authParams()
+	params.Set("id", id)
+	if size != "" {
+		params.Set("size", size)
+	}
+	reqURL := c.baseURL + "/rest/getCoverArt?" + params.Encode()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return nil, nil, 0, err
+	}
+	resp, err := c.streamClient.Do(req)
+	if err != nil {
+		return nil, nil, 0, fmt.Errorf("tidal coverArt %s: %w", id, err)
+	}
+	if resp.StatusCode >= 400 {
+		defer resp.Body.Close()
+		return nil, nil, 0, fmt.Errorf("tidal coverArt %s: unexpected status %d", id, resp.StatusCode)
+	}
+	return resp.Body, resp.Header, resp.StatusCode, nil
+}
+
 func (c *client) DownloadTo(ctx context.Context, tidalID, kind string, w io.Writer) (string, error) {
 	if !c.configured() {
 		return "", ErrNotConfigured

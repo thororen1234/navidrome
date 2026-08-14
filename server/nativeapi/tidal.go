@@ -24,6 +24,7 @@ func (api *Router) addTidalRoute(r chi.Router) {
 		r.Get("/artist/{id}", api.tidalArtist)
 		r.Get("/album/{id}", api.tidalAlbum)
 		r.Get("/stream/{id}", api.tidalStream)
+		r.Get("/coverArt/{id}", api.tidalCoverArt)
 		r.With(adminOnlyMiddleware).Post("/download", api.tidalDownload)
 	})
 }
@@ -92,6 +93,28 @@ func (api *Router) tidalStream(w http.ResponseWriter, r *http.Request) {
 	}
 	defer body.Close()
 	for _, h := range []string{"Content-Type", "Content-Length", "Content-Range", "Accept-Ranges"} {
+		if v := header.Get(h); v != "" {
+			w.Header().Set(h, v)
+		}
+	}
+	w.WriteHeader(status)
+	_, _ = io.Copy(w, body)
+}
+
+// tidalCoverArt proxies TidalSubsonic's getCoverArt response through Navidrome, same rationale
+// as tidalStream: the browser never needs direct network access to TidalSubsonic.
+func (api *Router) tidalCoverArt(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	id := chi.URLParam(r, "id")
+	size := r.URL.Query().Get("size")
+	body, header, status, err := api.tidal.CoverArt(ctx, id, size)
+	if err != nil {
+		log.Error(ctx, "Error fetching cover art from Tidal", "id", id, err)
+		http.Error(w, "error fetching tidal cover art", http.StatusBadGateway)
+		return
+	}
+	defer body.Close()
+	for _, h := range []string{"Content-Type", "Content-Length"} {
 		if v := header.Get(h); v != "" {
 			w.Header().Set(h, v)
 		}

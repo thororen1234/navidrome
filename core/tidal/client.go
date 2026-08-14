@@ -30,8 +30,9 @@ const (
 var ErrNotConfigured = errors.New("tidal: not configured (set Tidal.BaseURL/Username/Password)")
 
 type Artist struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID     string  `json:"id"`
+	Name   string  `json:"name"`
+	Albums []Album `json:"album"`
 }
 
 type Track struct {
@@ -71,6 +72,8 @@ type Client interface {
 	// through to the browser, forwarding Range so in-browser seeking works. The caller must
 	// close the returned body.
 	Stream(ctx context.Context, id string, rangeHeader string) (body io.ReadCloser, header http.Header, statusCode int, err error)
+	// CoverArt proxies TidalSubsonic's getCoverArt endpoint the same way Stream proxies audio.
+	CoverArt(ctx context.Context, id string, size string) (body io.ReadCloser, header http.Header, statusCode int, err error)
 	// DownloadTo streams the raw response for id (a single audio file for a track, a zip archive
 	// for an album - TidalSubsonic always zips multi-track downloads) into w, returning the
 	// upstream-suggested filename when one is present.

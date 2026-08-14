@@ -298,7 +298,7 @@ type downloaderOptions struct {
 	ScdlPath       string // "" = resolve "scdl" on PATH
 	SpotdlPath     string // "" = resolve "spotdl" on PATH
 	BandcampDlPath string // "" = resolve "bandcamp-dl" on PATH (pip package: bandcamp-downloader)
-	KhinsiderPath  string // "" = resolve "khinsider-dl" on PATH
+	KhinsiderPath  string // "" = resolve "khidl" on PATH (pip package: khinsider-dl)
 	PipPath        string // "" = resolve "pip3"/"pip" on PATH
 	UsePipx        bool   // use pipx install/upgrade/reinstall instead of pip install -U/--force-reinstall
 	JobTimeout     time.Duration

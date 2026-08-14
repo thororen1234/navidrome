@@ -44,7 +44,7 @@ func toolPathConfig(tool model.DownloadTool) (configured, fallback string) {
 	case model.DownloadToolBandcampDl:
 		return conf.Server.Downloader.BandcampDlPath, "bandcamp-dl"
 	case model.DownloadToolKhinsider:
-		return conf.Server.Downloader.KhinsiderPath, "khinsider-dl"
+		return conf.Server.Downloader.KhinsiderPath, "khidl"
 	}
 	return "", ""
 }
@@ -66,7 +66,7 @@ func buildArgs(tool model.DownloadTool, bin, sourceURL, outDir string) []string 
 	case model.DownloadToolBandcampDl:
 		return []string{bin, "--base-dir", outDir, sourceURL}
 	case model.DownloadToolKhinsider:
-		return []string{bin, "download", sourceURL, "-o", outDir}
+		return []string{bin, "download", sourceURL, outDir}
 	}
 	return nil
 }
