@@ -243,7 +243,7 @@ func runTwoRequests(m func(http.Handler) http.Handler) (firstStatus, secondStatu
 
 // slowTestWriter implements http.ResponseWriter without embedding
 // httptest.ResponseRecorder. This is necessary because ResponseRecorder
-// promotes io.ReaderFrom, which io.Copy prefers over Write — bypassing
+// promotes io.ReaderFrom, which io.Copy prefers over Write - bypassing
 // our blocking Write and defeating the slow-client simulation.
 type slowTestWriter struct {
 	header    http.Header

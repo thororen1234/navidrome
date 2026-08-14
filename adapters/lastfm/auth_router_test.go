@@ -142,7 +142,7 @@ var _ = Describe("auth_router", func() {
 		It("writes only under the user encoded in the token, regardless of query manipulation", func() {
 			// An attacker holds a legitimate link token for their own account.
 			// They attempt to call the callback hoping to overwrite the victim's
-			// session key — but the handler must derive the user ID from the
+			// session key - but the handler must derive the user ID from the
 			// signed token, not from any other input.
 			stubGetSessionOK("ATTACKER_SESSION")
 			attackerToken, err := createLinkToken(attackerID)

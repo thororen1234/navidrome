@@ -42,7 +42,7 @@ var _ = Describe("Multi-user access control", func() {
 
 		It("does not let a non-owner delete another user's private playlist", func() {
 			adminPl := createPlaylist("Admin Private", nil)
-			// The playlist is invisible to the regular user, so delete resolves to 404 (not 403) —
+			// The playlist is invisible to the regular user, so delete resolves to 404 (not 403) -
 			// the API never reveals that someone else's private playlist exists.
 			Expect(delAs(regularUser, "/Items/"+enc(adminPl)).Code).To(Equal(http.StatusNotFound))
 			// Still present for the owner.

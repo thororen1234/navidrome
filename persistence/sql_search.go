@@ -57,7 +57,7 @@ func (r sqlRepository) doSearch(sq SelectBuilder, q string, results any, cfg sea
 
 	sq = sq.Where(Eq{r.tableName + ".missing": false})
 
-	// Empty query (OpenSubsonic `search3?query=""`) — return all in natural order.
+	// Empty query (OpenSubsonic `search3?query=""`) - return all in natural order.
 	if q == "" || q == `""` {
 		rowidCore := Select(r.tableName + ".rowid").From(r.tableName).OrderBy(cfg.NaturalOrder)
 		return r.executeTwoPhase(sq, results, rowidCore, cfg, options)
@@ -86,9 +86,9 @@ func (r sqlRepository) doSearch(sq SelectBuilder, q string, results any, cfg sea
 
 // executeTwoPhase runs a search in two phases:
 //   - Phase 1: rowidCore (strategy-specific FROM/JOINs and ORDER BY) plus the shared search
-//     contract applied here — non-missing rows only, library access, options.Filters, and
+//     contract applied here - non-missing rows only, library access, options.Filters, and
 //     pagination. Keeping Phase 1 free of the full SELECT's JOINs lets SQLite paginate via a
-//     covering index; with those JOINs, large offsets degrade to O(offset) join probes —
+//     covering index; with those JOINs, large offsets degrade to O(offset) join probes -
 //     multi-second responses on 100k+ libraries.
 //   - Phase 2: full SELECT with all JOINs, scoped to Phase 1's rowid page.
 func (r sqlRepository) executeTwoPhase(sq SelectBuilder, results any, rowidCore SelectBuilder, cfg searchConfig, options model.QueryOptions) error {

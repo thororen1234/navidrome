@@ -12,6 +12,7 @@ import (
 	"github.com/navidrome/navidrome/conf"
 	"github.com/navidrome/navidrome/consts"
 	"github.com/navidrome/navidrome/core/artwork"
+	"github.com/navidrome/navidrome/core/downloader"
 	"github.com/navidrome/navidrome/db"
 	"github.com/navidrome/navidrome/log"
 	"github.com/navidrome/navidrome/model"
@@ -93,6 +94,12 @@ func runNavidrome(ctx context.Context) {
 	g.Go(startArtworkWorker(ctx, artworkWorker))
 	g.Go(scheduleArtworkHousekeeping(ctx, artworkWorker))
 	g.Go(runInitialScan(ctx))
+	if conf.Server.Downloader.Enabled {
+		downloadWorker := CreateDownloadWorker(ctx)
+		g.Go(startDownloadWorker(ctx, downloadWorker))
+	} else {
+		log.Debug(ctx, "Downloader is DISABLED")
+	}
 	if conf.Server.Scanner.Enabled {
 		g.Go(startScanWatcher(ctx))
 		g.Go(schedulePeriodicScan(ctx))
@@ -353,6 +360,15 @@ func startPlaybackServer(ctx context.Context) func() error {
 func startArtworkWorker(ctx context.Context, worker *artwork.Worker) func() error {
 	return func() error {
 		log.Info(ctx, "Starting artwork worker")
+		return worker.Run(ctx)
+	}
+}
+
+// startDownloadWorker starts the Downloader tab's job queue worker. Unlike the artwork worker,
+// this is opt-in (conf.Server.Downloader.Enabled) since it shells out to external tools.
+func startDownloadWorker(ctx context.Context, worker *downloader.Worker) func() error {
+	return func() error {
+		log.Info(ctx, "Starting downloader worker")
 		return worker.Run(ctx)
 	}
 }

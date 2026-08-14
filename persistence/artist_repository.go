@@ -608,7 +608,7 @@ func (r *artistRepository) searchCfg(scope []int) searchConfig {
 		NaturalOrder: "artist.id",
 		OrderBy:      []string{"sum(json_extract(stats, '$.total.m')) desc", "name"},
 		MBIDFields:   []string{"mbz_artist_id"},
-		// scope==nil is the fast-path: no filter (and orphans must not exist — see markOrphansMissing).
+		// scope==nil is the fast-path: no filter (and orphans must not exist - see markOrphansMissing).
 		// Otherwise the join-free [artistLibraryFilter].
 		LibraryFilter: func(query SelectBuilder) SelectBuilder {
 			if scope == nil {

@@ -130,7 +130,7 @@ func buildTestFS() storagetest.FakeFS {
 	// Template for diverse-format transcode test tracks
 	tcBase := _t{"albumartist": "Test Artist", "artist": "Test Artist", "album": "Transcode Formats", "year": 2024, "genre": "Test"}
 
-	// Template for lyrics e2e fixture tracks — isolated under Lyrics/ to keep other suite counts stable
+	// Template for lyrics e2e fixture tracks - isolated under Lyrics/ to keep other suite counts stable
 	lyricsAlbum := template(_t{"albumartist": "Lyric Tester", "artist": "Lyric Tester", "album": "Lyrics", "year": 2024, "genre": "Test"})
 
 	return harness.CreateFS(fstest.MapFS{
@@ -187,7 +187,7 @@ func buildTestFS() storagetest.FakeFS {
 		// parser benchmarks use); the .elrc and .yaml variants carry word-level
 		// timing, which drives the v1 (line-level) vs v2 (enhanced/word-level) tests.
 		//
-		// Embedded — lyrics delivered via the "lyrics" tag, parsed at scan time.
+		// Embedded - lyrics delivered via the "lyrics" tag, parsed at scan time.
 		// "Enhanced LRC" embeds ELRC (word-level) content; the title is kept generic
 		// since ELRC is still valid LRC.
 		"Lyrics/Embedded/01 - Embedded Enhanced LRC.mp3": lyricsAlbum(track(1, "Embedded Enhanced LRC",
@@ -197,7 +197,7 @@ func buildTestFS() storagetest.FakeFS {
 		"Lyrics/Embedded/03 - Embedded TTML.mp3": lyricsAlbum(track(3, "Embedded TTML",
 			_t{"lyrics": lyricFixture("auld-lang-syne.ttml")})),
 
-		// Sidecar — raw lyric text files read from the library FS at request time via fromExternalFile.
+		// Sidecar - raw lyric text files read from the library FS at request time via fromExternalFile.
 		// The scanner skips non-audio extensions (.lrc, .srt, .yaml), so placing them as raw MapFile
 		// entries is safe: they are visible to the fake FS but invisible to the scanner.
 		"Lyrics/Sidecar/01 - Sidecar LRC.mp3":   lyricsAlbum(track(1, "Sidecar LRC")),

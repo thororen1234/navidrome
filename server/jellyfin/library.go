@@ -36,7 +36,7 @@ func resolveLibraryScope(ctx context.Context, parentId string) (scopeIDs []int, 
 
 // decodeFilterParam separates an absent param from an undecodable one: dropping the filter for a
 // stale id would silently widen the query to the whole library. It is the only place that opts
-// into treating "absent" as fine — every other caller of dto.DecodeID must 404 on ok=false.
+// into treating "absent" as fine - every other caller of dto.DecodeID must 404 on ok=false.
 func decodeFilterParam(raw string) (id string, ok bool) {
 	if raw == "" {
 		return "", true

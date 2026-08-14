@@ -48,7 +48,7 @@ var _ = Describe("Item images", func() {
 		Expect(w.Body.String()).To(Equal("IMG"))
 	})
 
-	// Covers are served regardless of playlist visibility — see getItemImage for the rationale.
+	// Covers are served regardless of playlist visibility - see getItemImage for the rationale.
 	It("resolves a private playlist's cover for an unauthenticated caller", func() {
 		plID := createPlaylist("Secret Mix", nil) // owned by admin, private
 		w := rawReq("GET", "/Items/"+enc(plID)+"/Images/Primary", "")

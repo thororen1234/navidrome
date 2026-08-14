@@ -282,9 +282,9 @@ func runImport(ctx context.Context, files []string) {
 		matched := len(imported.Tracks)
 		if totalLines > 0 {
 			notFound := totalLines - matched
-			fmt.Printf("Imported \"%s\" — %d/%d tracks matched (%d not found)\n", imported.Name, matched, totalLines, notFound)
+			fmt.Printf("Imported \"%s\" - %d/%d tracks matched (%d not found)\n", imported.Name, matched, totalLines, notFound)
 		} else {
-			fmt.Printf("Imported \"%s\" — %d tracks\n", imported.Name, matched)
+			fmt.Printf("Imported \"%s\" - %d tracks\n", imported.Name, matched)
 		}
 	}
 }

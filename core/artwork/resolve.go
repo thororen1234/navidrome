@@ -25,7 +25,7 @@ type resolution struct {
 	sourcePath string        // backing library/upload file (folder/upload: the image; embedded: the audio file); "" otherwise
 	refMtime   int64         // sourcePath mtime (unix-nanoseconds) at resolution; 0 when no sourcePath
 	// external source errored/timed out. With no reader it forces failed (never absent);
-	// on a hit a higher-priority external step failed—serve this, but retry later.
+	// on a hit a higher-priority external step failed-serve this, but retry later.
 	extError bool
 	// a local source that should have been readable wasn't. With no reader it forces failed,
 	// so a transient I/O fault never records absent.

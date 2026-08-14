@@ -63,8 +63,8 @@ func folderImages(folders []model.Folder) ([]string, time.Time) {
 // the album root folder when tracks live in disc subfolders, like
 // "Artist/Album/cover.jpg" with tracks in "Artist/Album/CD1/" and
 // "Artist/Album/CD2/". The parent must look like an album root, not an
-// artist-level folder — it qualifies only when it holds no audio belonging to
-// other albums — so artist images are never served as album art.
+// artist-level folder - it qualifies only when it holds no audio belonging to
+// other albums - so artist images are never served as album art.
 func albumRootParent(ctx context.Context, ds model.DataStore, folders []model.Folder, folderIDs []string) (*model.Folder, error) {
 	folderIDSet := make(map[string]bool, len(folderIDs))
 	for _, id := range folderIDs {

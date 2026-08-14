@@ -69,7 +69,7 @@ func (s *deciderService) MakeDecision(ctx context.Context, mf *model.MediaFile, 
 		log.Trace(ctx, "Global bitrate constraint exceeded, skipping direct play",
 			"sourceBitrate", src.Bitrate, "maxAudioBitrate", clientInfo.MaxAudioBitrate)
 		decision.TranscodeReasons = append(decision.TranscodeReasons, "audio bitrate not supported")
-		// Skip direct play profiles entirely — global constraint fails
+		// Skip direct play profiles entirely - global constraint fails
 	} else {
 		// Try direct play profiles, collecting reasons for each failure
 		for _, profile := range clientInfo.DirectPlayProfiles {
@@ -448,7 +448,7 @@ func (s *deciderService) ensureProbed(ctx context.Context, mf *model.MediaFile) 
 
 	if err := s.ds.MediaFile(ctx).UpdateProbeData(mf.ID, mf.ProbeData); err != nil {
 		log.Error(ctx, "Failed to persist probe data", "mediaID", mf.ID, err)
-		// Don't fail the decision — we have the data in memory
+		// Don't fail the decision - we have the data in memory
 	}
 
 	log.Debug(ctx, "Probed media file", "mediaID", mf.ID, "codec", result.Codec,

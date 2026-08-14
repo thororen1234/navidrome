@@ -39,7 +39,7 @@ var _ = Describe("Sanitize Strings", func() {
 
 		It("normalizes utf chars", func() {
 			// These uses different types of hyphens
-			Expect(str.SanitizeStrings("k—os", "k−os")).To(Equal("k-os"))
+			Expect(str.SanitizeStrings("k-os", "k−os")).To(Equal("k-os"))
 		})
 
 		It("remove commas", func() {

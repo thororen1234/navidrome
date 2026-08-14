@@ -416,7 +416,7 @@ func (m *Matcher) resolveArtists(ctx context.Context, queries []indexedQuery) (r
 			pending = append(pending, pendingArtist{name: a.name, mbid: a.mbid, query: iq.index})
 		}
 	}
-	// query indices that supplied each order name / each MBID (skip the empty key — an artist may
+	// query indices that supplied each order name / each MBID (skip the empty key - an artist may
 	// have only one of name/mbid).
 	nameToQueries := map[string][]int{}
 	mbidToQueries := map[string][]int{}
@@ -532,7 +532,7 @@ func (r resolvedArtists) bucketTracks(tracks []model.MediaFile) map[int][]scored
 }
 
 // fetchTracksCreditedTo fetches every non-missing track credited to any of the given artists as
-// the main artist (role='artist', not albumartist — that avoids tribute/compilation false
+// the main artist (role='artist', not albumartist - that avoids tribute/compilation false
 // positives). The non-correlated id IN (subquery) materializes the matching ids once from the
 // media_file_artists(artist_id) covering index, far cheaper than a correlated EXISTS that re-runs
 // per row. That form isn't expressible via the repository's role filters, so the raw squirrel.Expr

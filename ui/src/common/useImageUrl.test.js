@@ -51,7 +51,7 @@ describe('useImageUrl', () => {
   })
 
   it('should return loading state initially', () => {
-    global.fetch = vi.fn(() => new Promise(() => {}))
+    global.fetch = vi.fn(() => new Promise(() => { }))
     const { result } = renderHook(() =>
       useImageUrl('http://example.com/img.jpg'),
     )
@@ -103,7 +103,7 @@ describe('useImageUrl', () => {
   })
 
   it('should abort fetch on unmount', async () => {
-    global.fetch = vi.fn(() => new Promise(() => {}))
+    global.fetch = vi.fn(() => new Promise(() => { }))
 
     const { unmount } = renderHook(() =>
       useImageUrl('http://example.com/img.jpg'),
@@ -173,7 +173,7 @@ describe('useImageUrl', () => {
       }),
     )
 
-    // First mount — fetches and caches
+    // First mount - fetches and caches
     const { unmount } = renderHook(() =>
       useImageUrl('http://example.com/img.jpg'),
     )
@@ -187,7 +187,7 @@ describe('useImageUrl', () => {
     // Unmount (simulates React Admin refresh)
     unmount()
 
-    // Remount with same URL — should use cache
+    // Remount with same URL - should use cache
     const { result: result2 } = renderHook(() =>
       useImageUrl('http://example.com/img.jpg'),
     )
@@ -206,7 +206,7 @@ describe('useImageUrl', () => {
   it('should cache errors and not re-fetch broken URLs', async () => {
     global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 404 }))
 
-    // First mount — fetch fails and error is cached
+    // First mount - fetch fails and error is cached
     const { unmount } = renderHook(() =>
       useImageUrl('http://example.com/broken.jpg'),
     )
@@ -218,7 +218,7 @@ describe('useImageUrl', () => {
     expect(global.fetch).toHaveBeenCalledTimes(1)
     unmount()
 
-    // Remount with same URL — should use cached error, not re-fetch
+    // Remount with same URL - should use cached error, not re-fetch
     const { result: result2 } = renderHook(() =>
       useImageUrl('http://example.com/broken.jpg'),
     )

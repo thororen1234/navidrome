@@ -719,7 +719,7 @@ var _ = Describe("MediaFile.Hash", func() {
 	// or every file would be spuriously re-imported on the next scan.
 	// Golden hashes were captured at 46221d516 when those fields were plain ints.
 	It("keeps hashes identical to the pre-pointer-conversion values", func() {
-		// Golden hashes computed at 46221d516, when BPM/BitDepth were plain ints — pinning
+		// Golden hashes computed at 46221d516, when BPM/BitDepth were plain ints - pinning
 		// them guarantees the pointer conversion cannot trigger a full-library re-import.
 		Expect(MediaFile{Title: "Song"}.Hash()).To(Equal("1d856ced42cb96db39e354a4bac9a622"))
 		Expect(MediaFile{Title: "Song", BPM: new(120), BitDepth: new(16)}.Hash()).To(Equal("b2b0b1d1dd7fd767093588e4af3a0689"))

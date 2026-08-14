@@ -18,7 +18,7 @@ import (
 )
 
 // playlistsFolder is the item returned for a ManualPlaylistsFolder query. CollectionType must be
-// "playlists" — how the client identifies it; without it Jellify's playlist-library query loops.
+// "playlists" - how the client identifies it; without it Jellify's playlist-library query loops.
 func playlistsFolder() dto.BaseItemDto {
 	return dto.BaseItemDto{
 		Id:             dto.PlaylistsFolderGUID,
@@ -177,7 +177,7 @@ func (api *Router) getPlaylist(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Not Found", http.StatusNotFound)
 		return
 	}
-	// PlaylistInfo carries every track id, so this can't be paged — but it needs no track data.
+	// PlaylistInfo carries every track id, so this can't be paged - but it needs no track data.
 	trackIDs, err := repo.GetMediaFileIDs(model.QueryOptions{Sort: "id", Filters: notMissing})
 	if err != nil {
 		api.internalError(w, r, err)
@@ -246,7 +246,7 @@ func (api *Router) expandContainerIDs(ctx context.Context, ids []string) []strin
 		} else if pl, err := api.playlists.GetWithTracks(ctx, id); err == nil {
 			out = append(out, slice.Map(pl.Tracks, func(t model.PlaylistTrack) string { return t.MediaFileID })...)
 		} else {
-			out = append(out, id) // well-formed but unresolved — left for the caller's write to handle
+			out = append(out, id) // well-formed but unresolved - left for the caller's write to handle
 		}
 	}
 	return out
@@ -282,7 +282,7 @@ func (api *Router) addToPlaylist(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// removeFromPlaylist removes entries by entryIds — playlist-entry ids (PlaylistItemId), not media
+// removeFromPlaylist removes entries by entryIds - playlist-entry ids (PlaylistItemId), not media
 // file ids, since RemoveTracks deletes playlist_tracks rows by that id. RemoveTracks enforces
 // ownership; any error maps to 404.
 func (api *Router) removeFromPlaylist(w http.ResponseWriter, r *http.Request) {

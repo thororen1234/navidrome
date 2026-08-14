@@ -110,8 +110,8 @@ func escapeGlobLiteral(s string) string {
 	return b.String()
 }
 
-// loadArtistAlbumRoots returns one path per album — the deepest folder holding
-// all of that album's tracks — so an album split into disc subfolders can't
+// loadArtistAlbumRoots returns one path per album - the deepest folder holding
+// all of that album's tracks - so an album split into disc subfolders can't
 // pull the artist folder's common prefix below the artist level.
 func loadArtistAlbumRoots(ctx context.Context, ds model.DataStore, albums model.Albums) ([]string, []string, *time.Time, error) {
 	var folderIDs []string

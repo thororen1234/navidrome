@@ -11,7 +11,7 @@ var _ = Describe("Routing", func() {
 	BeforeEach(func() { setupTestDB() })
 
 	It("routes authenticated endpoints case-insensitively", func() {
-		// Lowercase path variant of GET /Items — real clients (jellyfin-apiclient-python) send these.
+		// Lowercase path variant of GET /Items - real clients (jellyfin-apiclient-python) send these.
 		lower := queryResult(get("/items?IncludeItemTypes=MusicAlbum&Recursive=true"))
 		Expect(lower.TotalRecordCount).To(Equal(5))
 	})

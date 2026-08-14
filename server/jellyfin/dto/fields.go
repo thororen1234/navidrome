@@ -3,7 +3,7 @@ package dto
 import "strings"
 
 // Fields is the parsed set of a Jellyfin request's Fields param (lowercased). It controls which
-// conditional fields a mapped item carries — chiefly MediaSources — matching real Jellyfin, which
+// conditional fields a mapped item carries - chiefly MediaSources - matching real Jellyfin, which
 // omits those unless the client asks for them.
 type Fields map[string]struct{}
 

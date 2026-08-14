@@ -762,7 +762,7 @@ var _ = Describe("XTP Schema Generation", func() {
 			Expect(err).NotTo(HaveOccurred())
 			s := string(out)
 			// The component is emitted under the canonical name, and the field $ref must
-			// point at it — not at a non-existent TrackInfo component (dangling reference).
+			// point at it - not at a non-existent TrackInfo component (dangling reference).
 			Expect(s).To(ContainSubstring("Track:"))
 			Expect(s).To(ContainSubstring("$ref: '#/components/schemas/Track'"))
 			Expect(s).NotTo(ContainSubstring("$ref: '#/components/schemas/TrackInfo'"))

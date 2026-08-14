@@ -483,7 +483,7 @@ var _ = Describe("httpServiceImpl", func() {
 			ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				_, _ = w.Write([]byte("method:" + r.Method))
 			}))
-			// Empty method — Go's http.NewRequestWithContext normalizes "" to "GET"
+			// Empty method - Go's http.NewRequestWithContext normalizes "" to "GET"
 			resp, err := svc.Send(context.Background(), host.HTTPRequest{
 				Method:    "",
 				URL:       ts.URL,

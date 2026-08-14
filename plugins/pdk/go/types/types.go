@@ -122,7 +122,7 @@ type Track struct {
 	MbzReleaseGroupID string `json:"mbzReleaseGroupId,omitempty"`
 	MbzAlbumType      string `json:"mbzAlbumType,omitempty"`
 	MbzAlbumComment   string `json:"mbzAlbumComment,omitempty"`
-	// ReplayGain — nil means no data; 0 is a valid measured value, so these
+	// ReplayGain - nil means no data; 0 is a valid measured value, so these
 	// must stay pointers to distinguish "absent" from "0".
 	RGAlbumGain *float64 `json:"rgAlbumGain,omitempty"`
 	RGAlbumPeak *float64 `json:"rgAlbumPeak,omitempty"`

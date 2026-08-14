@@ -120,7 +120,7 @@ func (api *Router) streamHls(w http.ResponseWriter, r *http.Request) {
 	p := req.Params(r)
 
 	// HLS packed audio can only carry ADTS/AAC or MP3; other codecs fall back to aac. A forced
-	// transcoding wins verbatim — its override rewrites the segment anyway, and the playlist must match.
+	// transcoding wins verbatim - its override rewrites the segment anyway, and the playlist must match.
 	codec := strings.ToLower(p.StringOr("audiocodec", ""))
 	if codec != "mp3" {
 		codec = "aac"

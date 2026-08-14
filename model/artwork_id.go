@@ -41,7 +41,7 @@ var artworkKindMap = map[string]Kind{
 }
 
 // ParseKind resolves an item_kind prefix (e.g. "al") to its Kind, reporting whether it was known.
-// Use it at string boundaries — URL params, the item_kind column — to enter the typed Kind domain.
+// Use it at string boundaries - URL params, the item_kind column - to enter the typed Kind domain.
 func ParseKind(prefix string) (Kind, bool) {
 	k, ok := artworkKindMap[prefix]
 	return k, ok

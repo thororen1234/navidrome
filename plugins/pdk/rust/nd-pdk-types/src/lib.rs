@@ -7,17 +7,29 @@ use std::collections::HashMap;
 
 // Helper functions for skip_serializing_if with numeric types
 #[allow(dead_code)]
-fn is_zero_i32(value: &i32) -> bool { *value == 0 }
+fn is_zero_i32(value: &i32) -> bool {
+    *value == 0
+}
 #[allow(dead_code)]
-fn is_zero_u32(value: &u32) -> bool { *value == 0 }
+fn is_zero_u32(value: &u32) -> bool {
+    *value == 0
+}
 #[allow(dead_code)]
-fn is_zero_i64(value: &i64) -> bool { *value == 0 }
+fn is_zero_i64(value: &i64) -> bool {
+    *value == 0
+}
 #[allow(dead_code)]
-fn is_zero_u64(value: &u64) -> bool { *value == 0 }
+fn is_zero_u64(value: &u64) -> bool {
+    *value == 0
+}
 #[allow(dead_code)]
-fn is_zero_f32(value: &f32) -> bool { *value == 0.0 }
+fn is_zero_f32(value: &f32) -> bool {
+    *value == 0.0
+}
 #[allow(dead_code)]
-fn is_zero_f64(value: &f64) -> bool { *value == 0.0 }
+fn is_zero_f64(value: &f64) -> bool {
+    *value == 0.0
+}
 /// ArtistRef is the minimal information a plugin returns for Navidrome to match an
 /// artist against the library. It is a reference, not a full artist entity: it
 /// carries only matching keys (name and optional internal/MusicBrainz IDs) plus a
@@ -66,12 +78,12 @@ pub struct SongRef {
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub isrc: String,
     /// Artist is the artist name.
-    /// 
+    ///
     /// Deprecated: use Artists.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub artist: String,
     /// ArtistMBID is the MusicBrainz artist ID.
-    /// 
+    ///
     /// Deprecated: use Artists.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub artist_mbid: String,
@@ -85,7 +97,7 @@ pub struct SongRef {
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub album_mbid: String,
     /// Duration is the song duration in seconds.
-    /// 
+    ///
     /// Deprecated: use DurationMs, which carries millisecond precision. When
     /// DurationMs is non-zero it takes precedence; Duration is kept only for
     /// backwards compatibility with plugins that still send seconds.
@@ -99,7 +111,7 @@ pub struct SongRef {
 /// Track is a stable, public projection of a library media file for plugin consumption.
 /// It is a sane subset of the internal model.MediaFile, intended for reuse across host
 /// services and capabilities. Timestamps are Unix epoch seconds.
-/// 
+///
 /// Unlike SongRef, which is an abstract recording reference carrying only matching keys,
 /// Track is a concrete library entity: it identifies a specific media file that exists
 /// (or once existed) in the library and exposes its full descriptive metadata.
@@ -198,7 +210,7 @@ pub struct Track {
     pub mbz_album_type: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub mbz_album_comment: String,
-    /// ReplayGain — nil means no data; 0 is a valid measured value, so these
+    /// ReplayGain - nil means no data; 0 is a valid measured value, so these
     /// must stay pointers to distinguish "absent" from "0".
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rg_album_gain: Option<f64>,

@@ -29,7 +29,7 @@ var _ = Describe("Lyrics endpoints", func() {
 
 	// songLyrics extension v1: getLyricsBySongId without the enhanced parameter
 	// returns line-level structured lyrics (line[], lang, synced) and must NOT
-	// emit any v2/enhanced fields — no cueLine, kind, or agents — even for
+	// emit any v2/enhanced fields - no cueLine, kind, or agents - even for
 	// formats that carry word-level timing (ELRC, Lyricsfile YAML).
 	Describe("getLyricsBySongId v1 (line-level, not enhanced)", func() {
 		DescribeTable("returns line-level lyrics without enhanced fields",
@@ -51,7 +51,7 @@ var _ = Describe("Lyrics endpoints", func() {
 			// "xxx" is the ISO 639-2 code for "no language specified"; the .lrc/.elrc
 			// fixtures declare [lang:eng], the .ttml declares xml:lang, the .yaml sets
 			// language: eng, while .srt carries no language and the embedded plain
-			// text has none — so each format exercises a different language path.
+			// text has none - so each format exercises a different language path.
 			Entry("embedded enhanced LRC (word-level)", "Embedded Enhanced LRC", true, "eng"),
 			Entry("embedded plain text", "Embedded Plain", false, "xxx"),
 			Entry("embedded TTML", "Embedded TTML", true, "eng"),
@@ -94,7 +94,7 @@ var _ = Describe("Lyrics endpoints", func() {
 	})
 
 	// getLyrics is the original Subsonic (pre-OpenSubsonic) endpoint. It looks up
-	// by artist/title and returns the main lyric flattened to plain text — every
+	// by artist/title and returns the main lyric flattened to plain text - every
 	// line's Value joined by newlines, with all timing/markup dropped. Synced and
 	// word-level formats (ELRC/TTML/SRT/YAML) all degrade to plain text here.
 	Describe("getLyrics (legacy artist/title)", func() {

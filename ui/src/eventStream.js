@@ -24,6 +24,10 @@ const setupHandlers = (stream, dispatchFn) => {
     stream.addEventListener('nowPlayingCount', eventHandler(dispatchFn))
   }
   stream.addEventListener('keepAlive', eventHandler(dispatchFn))
+  if (config.downloaderEnabled) {
+    stream.addEventListener('downloadStatus', throttledEventHandler(dispatchFn))
+    stream.addEventListener('toolInstallStatus', eventHandler(dispatchFn))
+  }
   stream.onerror = (e) => {
     // eslint-disable-next-line no-console
     console.log('EventStream error', e)
@@ -80,6 +84,13 @@ const startEventStreamLegacy = async (dispatchFn) => {
         newStream.addEventListener('nowPlayingCount', eventHandler(dispatchFn))
       }
       newStream.addEventListener('keepAlive', eventHandler(dispatchFn))
+      if (config.downloaderEnabled) {
+        newStream.addEventListener(
+          'downloadStatus',
+          throttledEventHandler(dispatchFn),
+        )
+        newStream.addEventListener('toolInstallStatus', eventHandler(dispatchFn))
+      }
       newStream.onerror = (e) => {
         // eslint-disable-next-line no-console
         console.log('EventStream error', e)

@@ -32,7 +32,7 @@ var _ = Describe("Radio artwork resolution", func() {
 	})
 
 	When("a radio has no uploaded image", func() {
-		// (no files on disk — the resolver has no sources to fall back to)
+		// (no files on disk - the resolver has no sources to fall back to)
 		It("settles absent", func() {
 			rd := model.Radio{ID: "rd-2", Name: "Bare Radio", StreamUrl: "https://example.com/stream"}
 			Expect(rds.Radio(rctx).Put(&rd)).To(Succeed())

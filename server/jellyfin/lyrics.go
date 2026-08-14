@@ -13,10 +13,10 @@ import (
 const lyricsLoadTimeout = time.Minute
 
 // cachedLyrics resolves lyrics through the full source pipeline (embedded, sidecar, plugins),
-// caching results — including empty: clients poll per played track, so misses are the hot path.
+// caching results - including empty: clients poll per played track, so misses are the hot path.
 func (api *Router) cachedLyrics(ctx context.Context, mf *model.MediaFile) model.LyricList {
 	// The load is shared across requests (singleflight) and cached, so don't let one
-	// cancelled request abort it for everybody — detach it from the request's lifetime,
+	// cancelled request abort it for everybody - detach it from the request's lifetime,
 	// keeping a bound so a hung plugin can't pin the fetch (and its plugin slot) forever.
 	loadCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), lyricsLoadTimeout)
 	defer cancel()

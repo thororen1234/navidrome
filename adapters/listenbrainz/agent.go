@@ -156,7 +156,7 @@ func (l *listenBrainzAgent) GetArtistTopSongs(ctx context.Context, id, artistNam
 // topSongArtists maps the top-recordings response, which carries a single combined display name
 // (e.g. "X feat. Y") plus a per-artist MBID list, onto agents.Artist. Names and MBIDs are not
 // positionally pairable, so the display name attaches to the first credit and any further MBIDs
-// become MBID-only collaborators — still valid identity signals for the matcher.
+// become MBID-only collaborators - still valid identity signals for the matcher.
 func topSongArtists(name string, mbids []string) []agents.Artist {
 	if len(mbids) == 0 {
 		if name == "" {

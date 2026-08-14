@@ -105,6 +105,10 @@ func (s *SQLStore) ArtworkQueue(ctx context.Context) model.ArtworkQueueRepositor
 	return NewArtworkQueueRepository(ctx, s.getDBXBuilder())
 }
 
+func (s *SQLStore) Download(ctx context.Context) model.DownloadRepository {
+	return NewDownloadRepository(ctx, s.getDBXBuilder())
+}
+
 func (s *SQLStore) Resource(ctx context.Context, m any) model.ResourceRepository {
 	switch m.(type) {
 	case model.User:

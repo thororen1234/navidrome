@@ -80,10 +80,10 @@
 // # Examples
 //
 // All examples below exercise the title+artist phase, where the interesting
-// behavior lives. (Identifier phases — ID, MBID, ISRC — are exact lookups that
+// behavior lives. (Identifier phases - ID, MBID, ISRC - are exact lookups that
 // always win over fuzzy matching; they need no illustration.)
 //
-// Title threshold — a near-miss title still matches; an exact-only threshold
+// Title threshold - a near-miss title still matches; an exact-only threshold
 // rejects it:
 //
 //	Agent returns: {Name: "Bohemian Rhapsody", Artist: "Queen"}
@@ -91,7 +91,7 @@
 //	With threshold 85%: match succeeds (similarity ~0.87)
 //	With threshold 100%: no match (not an exact title)
 //
-// Specificity ranking — among candidates that clear the title threshold, a
+// Specificity ranking - among candidates that clear the title threshold, a
 // better album match wins:
 //
 //	Agent returns: {Name: "Enjoy the Silence", Artist: "Depeche Mode", Album: "Violator"}
@@ -100,7 +100,7 @@
 //	  {ID: "t2", Title: "Enjoy the Silence", Artist: "Depeche Mode", Album: "Violator"}  // Level 3
 //	Result: t2 (Level 3 beats Level 1 on the album match)
 //
-// Duration tiebreak — with title and artist equal, the closest duration wins,
+// Duration tiebreak - with title and artist equal, the closest duration wins,
 // so two near-identical input songs can resolve to different tracks:
 //
 //	Agent returns:
@@ -111,7 +111,7 @@
 //	  {ID: "live",   Title: "Untitled", Artist: "Interpol", Duration: 602}  // 10:02
 //	Result: studio for the first song, live for the second
 //
-// Preferred track — when conf.Server.Matcher.PreferStarred is enabled, a
+// Preferred track - when conf.Server.Matcher.PreferStarred is enabled, a
 // starred (or rating >= 4) track is preferred, but only when specificity and
 // artist overlap are equal. A more specific match always wins regardless of the
 // preferred flag:

@@ -5,6 +5,7 @@ Navidrome supports WebAssembly (Wasm) plugins for extending functionality. Plugi
 The plugin system is built on **[Extism](https://extism.org/)**, a cross-language framework for building WebAssembly plugins. You can write plugins in any language that Extism supports (Go, Rust, Python, TypeScript, and more) using their Plugin Development Kits (PDKs).
 
 **Essential Extism Resources:**
+
 - [Extism Documentation](https://extism.org/docs/overview) – Core concepts and architecture
 - [Plugin Development Kits (PDKs)](https://extism.org/docs/concepts/pdk) – Language-specific libraries for writing plugins
 - [Go PDK](https://github.com/extism/go-pdk) – Recommended for Go plugins with TinyGo
@@ -172,7 +173,7 @@ Capabilities define what your plugin can do. They're automatically detected base
 
 ### MetadataAgent
 
-Provides artist and album metadata. All methods are **optional** — implement only the ones your data source supports.
+Provides artist and album metadata. All methods are **optional** - implement only the ones your data source supports.
 
 | Function                          | Input                      | Output                           | Description              |
 |-----------------------------------|----------------------------|----------------------------------|--------------------------|
@@ -604,10 +605,10 @@ Normal WASI filesystem calls work inside the mount, so use the `os` package dire
 
 ```go
 import (
-	"os"
-	"path/filepath"
+ "os"
+ "path/filepath"
 
-	"github.com/navidrome/navidrome/plugins/pdk/go/host"
+ "github.com/navidrome/navidrome/plugins/pdk/go/host"
 )
 
 // The path never changes, so read it once instead of per operation
@@ -891,7 +892,7 @@ contentType, data, err := host.SubsonicAPICallRaw("getCoverArt?id=al-123&u=usern
 
 ### Config
 
-Access plugin configuration values. Unlike `pdk.GetConfig()` which only retrieves individual values, this service can list all available configuration keys — useful for discovering dynamic configuration.
+Access plugin configuration values. Unlike `pdk.GetConfig()` which only retrieves individual values, this service can list all available configuration keys - useful for discovering dynamic configuration.
 
 > **Note:** This service is always available and does not require a manifest permission.
 

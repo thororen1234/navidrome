@@ -21,7 +21,7 @@ var _ = Describe("idColumns inventory", func() {
 		ctx := context.Background()
 		db, err := sql.Open("sqlite3", "file::memory:")
 		Expect(err).ToNot(HaveOccurred())
-		db.SetMaxOpenConns(1) // non-shared :memory: — a second conn would be an empty DB
+		db.SetMaxOpenConns(1) // non-shared :memory: - a second conn would be an empty DB
 		DeferCleanup(func() { _ = db.Close() })
 		_, err = db.ExecContext(ctx, "PRAGMA foreign_keys=off")
 		Expect(err).ToNot(HaveOccurred())

@@ -63,7 +63,7 @@ func New() FFmpeg {
 // ErrAnimatedWebPUnsupported is returned by ConvertAnimatedImage when the
 // ffmpeg binary lacks the libwebp_anim encoder. Callers can use errors.Is to
 // detect this specific case and fall back to static resize.
-var ErrAnimatedWebPUnsupported = errors.New("ffmpeg lacks libwebp_anim encoder — install an ffmpeg build with libwebp")
+var ErrAnimatedWebPUnsupported = errors.New("ffmpeg lacks libwebp_anim encoder - install an ffmpeg build with libwebp")
 
 const (
 	extractImageCmd     = "ffmpeg -i %s -map 0:v -map -0:V -vcodec copy -f image2pipe -"
@@ -179,7 +179,7 @@ func (e *ffmpeg) ProbeAudioStream(ctx context.Context, filePath string) (*AudioP
 
 // ProbeError reports an ffprobe failure. Reason is a path-free message safe to
 // expose to clients; the wrapped cause carries the full detail for logging.
-// NotFound marks the media file itself as missing — a launch failure of a
+// NotFound marks the media file itself as missing - a launch failure of a
 // deleted ffprobe binary also wraps fs.ErrNotExist, so callers must not infer
 // it from the error chain.
 type ProbeError struct {
@@ -498,7 +498,7 @@ func buildDynamicArgs(opts TranscodeOptions) []string {
 // buildTemplateArgs handles user-customized command templates, with dynamic injection
 // of sample rate, channels, and bit depth when requested by the transcode decision.
 // Values in opts have already been clamped to codec limits upstream (see
-// core/stream/codec.go codecMax* helpers), so injecting them unconditionally is safe —
+// core/stream/codec.go codecMax* helpers), so injecting them unconditionally is safe -
 // ffmpeg honors the last occurrence of a duplicate flag.
 func buildTemplateArgs(opts TranscodeOptions) []string {
 	args := createFFmpegCommand(opts.Command, opts.FilePath, opts.BitRate, opts.Offset)

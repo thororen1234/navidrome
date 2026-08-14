@@ -286,8 +286,8 @@ func (l *lastfmAgent) GetArtistImages(ctx context.Context, _, name, mbid string)
 	return res, nil
 }
 
-// callAlbumGetInfo matches on name+artist only. Last.fm's album.getInfo by MBID is unreliable —
-// a correct MBID can return a different album (or none) — so the MBID is deliberately not passed.
+// callAlbumGetInfo matches on name+artist only. Last.fm's album.getInfo by MBID is unreliable -
+// a correct MBID can return a different album (or none) - so the MBID is deliberately not passed.
 func (l *lastfmAgent) callAlbumGetInfo(ctx context.Context, name, artist, lang string) (*Album, error) {
 	a, err := l.client.albumGetInfo(ctx, name, artist, "", lang)
 	if err != nil {

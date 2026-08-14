@@ -81,7 +81,7 @@ func (s *ImageStore) Write(hash, mimeType string, r io.Reader) error {
 		if err := os.Chtimes(dst, now, now); err == nil {
 			return nil
 		}
-		// touch failed (likely pruned concurrently) — fall through and rewrite it
+		// touch failed (likely pruned concurrently) - fall through and rewrite it
 	}
 	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
 		return err

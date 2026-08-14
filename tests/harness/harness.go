@@ -102,7 +102,7 @@ func ResettableTables() []string {
 	return tables
 }
 
-// TruncateDB empties every resettable table, leaving the migrated schema in place — for suites
+// TruncateDB empties every resettable table, leaving the migrated schema in place - for suites
 // whose specs each build their own library, so the schema is not re-migrated per spec.
 func TruncateDB(tables []string) {
 	sqlDB := db.Db()
@@ -117,7 +117,7 @@ func TruncateDB(tables []string) {
 	}
 }
 
-// Restore reloads every table from the golden snapshot via ATTACH DATABASE — much faster than a
+// Restore reloads every table from the golden snapshot via ATTACH DATABASE - much faster than a
 // rescan.
 func (h *DB) Restore() {
 	sqlDB := db.Db()

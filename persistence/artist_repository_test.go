@@ -152,7 +152,7 @@ var _ = Describe("ArtistRepository", func() {
 			})
 
 			It("returns nil (fast-path) for an admin requesting all existing libraries", func() {
-				// Admins see every library, so the visible set is the whole library table — derive
+				// Admins see every library, so the visible set is the whole library table - derive
 				// it from the DB rather than assuming a count.
 				var allLibs []int
 				Expect(NewLibraryRepository(GinkgoT().Context(), GetDBXBuilder()).(*libraryRepository).
@@ -775,7 +775,7 @@ var _ = Describe("ArtistRepository", func() {
 
 				It("paginates a restricted user's visible artists without gaps", func() {
 					// ID "25" sorts between base fixtures "2" and "3", so this lib2-only artist lands
-					// inside the restricted user's visible range — exercising the no-gap guarantee.
+					// inside the restricted user's visible range - exercising the no-gap guarantee.
 					lib2Artist := model.Artist{ID: "25", Name: "Restricted Lib2 Artist"}
 					Expect(repo.Put(&lib2Artist)).To(Succeed())
 					Expect(lr.AddArtist(lib2.ID, lib2Artist.ID)).To(Succeed())

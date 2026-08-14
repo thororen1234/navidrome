@@ -72,7 +72,7 @@ func encodeReserved(kind byte, payload int) string {
 
 // DecodeID maps an inbound GUID back to the identifier the rest of the API uses: a canonical id,
 // a decimal library id, or PlaylistsFolderID. ok is false for anything that isn't a well-formed
-// GUID — including the empty string — so an undecodable id can't reach a caller as "no filter".
+// GUID - including the empty string - so an undecodable id can't reach a caller as "no filter".
 // Dashed and uppercase forms are accepted, as Jellyfin's Guid.Parse accepts them. Playlist entries
 // decode through DecodePlaylistEntryID instead, so a position can't reach a caller expecting an
 // entity id.

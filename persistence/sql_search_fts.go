@@ -76,11 +76,11 @@ func processPunctuatedWords(input string, phrases []string) (string, []string) {
 			result = append(result, concat)
 			continue
 		}
-		// Dotted abbreviations (R.E.M., U.K.) — all single letters separated by dots only
+		// Dotted abbreviations (R.E.M., U.K.) - all single letters separated by dots only
 		if isDottedAbbreviation(w, subTokens) {
 			phrases = append(phrases, fmt.Sprintf(`"%s"`, strings.Join(subTokens, " ")))
 		} else {
-			// Punctuated names (a-ha, AC/DC, Jay-Z) — phrase for adjacency + concat for search_normalized
+			// Punctuated names (a-ha, AC/DC, Jay-Z) - phrase for adjacency + concat for search_normalized
 			phrases = append(phrases, fmt.Sprintf(`("%s" OR %s*)`, strings.Join(subTokens, " "), concat))
 		}
 		result = append(result, fmt.Sprintf("\x00PHRASE%d\x00", len(phrases)-1))
@@ -125,7 +125,7 @@ func buildFTS5Query(userInput string) (string, bool) {
 		}
 		end := strings.Index(result[start+1:], `"`)
 		if end == -1 {
-			// Unmatched quote — remove it
+			// Unmatched quote - remove it
 			result = result[:start] + result[start+1:]
 			break
 		}
@@ -169,7 +169,7 @@ func buildFTS5Query(userInput string) (string, bool) {
 		wrappedTokens[i] = "(" + t + " OR " + t + "*)"
 	}
 
-	// Use explicit AND between tokens — FTS5's implicit AND (space-separated)
+	// Use explicit AND between tokens - FTS5's implicit AND (space-separated)
 	// doesn't work correctly with parenthesized OR groups. The prefix form is
 	// space-joined instead: it only feeds ftsQueryDegraded, which would count a
 	// literal "AND" as a long token and never flag all-short-token queries.
@@ -309,11 +309,11 @@ func ftsQueryDegraded(original, ftsQuery string) bool {
 	if original == "" || ftsQuery == "" {
 		return false
 	}
-	// Strip quotes from original for comparison — we want the raw content
+	// Strip quotes from original for comparison - we want the raw content
 	stripped := strings.ReplaceAll(original, `"`, "")
 	// Extract the alphanumeric content from the original query
 	alphaNum := str.FTSPunctStrip.ReplaceAllString(stripped, "")
-	// If the original is entirely alphanumeric, nothing was stripped — not degraded
+	// If the original is entirely alphanumeric, nothing was stripped - not degraded
 	if len(alphaNum) == len(stripped) {
 		return false
 	}
@@ -328,7 +328,7 @@ func ftsQueryDegraded(original, ftsQuery string) bool {
 			return false
 		}
 		// For OR groups from processPunctuatedWords (e.g., ("a ha" OR aha*)),
-		// the punctuated word was already handled meaningfully — not degraded.
+		// the punctuated word was already handled meaningfully - not degraded.
 		if strings.HasPrefix(t, "(") {
 			return false
 		}

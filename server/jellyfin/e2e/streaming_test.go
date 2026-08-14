@@ -117,7 +117,7 @@ var _ = Describe("Streaming", func() {
 			// host path hits the mounted router.
 			Expect(streamURL).To(HavePrefix(consts.URLPathJellyfinAPI + "/Audio/" + enc(id) + "/universal"))
 			Expect(streamURL).To(ContainSubstring("api_key="))
-			// The embedded api_key alone must authenticate the stream — no auth header sent. The e2e
+			// The embedded api_key alone must authenticate the stream - no auth header sent. The e2e
 			// router is mounted at the root, so strip the /jellyfin prefix before replaying.
 			replayURL := strings.TrimPrefix(streamURL, consts.URLPathJellyfinAPI)
 			w := rawReq("GET", replayURL, "")

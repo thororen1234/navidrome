@@ -26,7 +26,7 @@ type ScrobbleOptions struct {
 	// default if not specified
 	MaxItems int `json:"maxItems"`
 	// Pagination state managed by GetScrobbles; only meaningful on the options it returns.
-	// Never set it or combine it with your own timestamps — scrobbles may be silently skipped
+	// Never set it or combine it with your own timestamps - scrobbles may be silently skipped
 	Offset int `json:"offset,omitempty"`
 }
 

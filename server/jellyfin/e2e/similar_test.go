@@ -29,7 +29,7 @@ var _ = Describe("Similar", func() {
 		})
 
 		// Unlike an unresolvable-but-well-formed id (empty result above), a malformed itemId never
-		// reaches provider lookup at all — itemIDParam rejects it first.
+		// reaches provider lookup at all - itemIDParam rejects it first.
 		It("404s a malformed itemId", func() {
 			w := get("/Artists/not-a-valid-id/Similar")
 			Expect(w.Code).To(Equal(http.StatusNotFound))

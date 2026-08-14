@@ -225,8 +225,8 @@ func missingExpr(values map[string]any, checkAbsence bool) (squirrel.Sqlizer, er
 		// Nullable column fields are stored in dedicated columns, not in the tags JSON, so
 		// "missing" maps to a column check rather than a json_tree lookup. Numeric/boolean
 		// columns (e.g. ReplayGain, BPM) encode absence as NULL only; string columns (e.g.
-		// mbz_* IDs, lyrics) additionally treat empty string — and any field-specific empty
-		// encodings (e.g. '[]' for lyrics) — as missing. The unified flow below handles both:
+		// mbz_* IDs, lyrics) additionally treat empty string - and any field-specific empty
+		// encodings (e.g. '[]' for lyrics) - as missing. The unified flow below handles both:
 		// numeric/boolean fields simply have no empties, so the loops are no-ops.
 		f, ok := smartPlaylistFields[info.Name()]
 		if !ok || f.expr == "" {
@@ -715,8 +715,8 @@ func annotationCond(f smartPlaylistField, cmp comparator, value any) squirrel.Sq
 
 // bareNullInclusion decides whether the index-friendly bare form is safe for this comparison and,
 // if so, whether missing (NULL) rows must be re-included via `OR col IS NULL`. It returns ok=false
-// when the bare form can't be proven equivalent to COALESCE(col, default) <cmp> ? — i.e. the value
-// isn't a scalar the comparator can order exactly (lists, bool ordering, unparseable values) — in
+// when the bare form can't be proven equivalent to COALESCE(col, default) <cmp> ? - i.e. the value
+// isn't a scalar the comparator can order exactly (lists, bool ordering, unparseable values) - in
 // which case the caller keeps the COALESCE form. When ok=true, wrapNull is true iff the default
 // value itself satisfies the predicate (so missing rows would match and must be preserved).
 func bareNullInclusion(defaultVal any, cmp comparator, value any) (wrapNull, ok bool) {
@@ -749,8 +749,8 @@ func boolToFloat(b bool) float64 {
 }
 
 // toFloat coerces a scalar criteria value to float64. Criteria values come from JSON (float64,
-// string) or are built in Go (int, float64), so only those types are handled; anything else —
-// including a slice or an unparseable string — reports ok=false so the caller keeps the COALESCE
+// string) or are built in Go (int, float64), so only those types are handled; anything else -
+// including a slice or an unparseable string - reports ok=false so the caller keeps the COALESCE
 // form instead of an index-friendly bare comparison.
 func toFloat(v any) (float64, bool) {
 	switch n := v.(type) {

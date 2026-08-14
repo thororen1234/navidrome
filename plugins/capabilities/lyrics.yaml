@@ -2,10 +2,10 @@ version: v1-draft
 exports:
     nd_lyrics_get_lyrics:
         input:
-            $ref: '#/components/schemas/GetLyricsRequest'
+            $ref: "#/components/schemas/GetLyricsRequest"
             contentType: application/json
         output:
-            $ref: '#/components/schemas/GetLyricsResponse'
+            $ref: "#/components/schemas/GetLyricsResponse"
             contentType: application/json
 components:
     schemas:
@@ -13,7 +13,7 @@ components:
             description: GetLyricsRequest contains the track information for lyrics lookup.
             properties:
                 track:
-                    $ref: '#/components/schemas/TrackInfo'
+                    $ref: "#/components/schemas/TrackInfo"
             required:
                 - track
         GetLyricsResponse:
@@ -22,13 +22,13 @@ components:
                 lyrics:
                     type: array
                     items:
-                        $ref: '#/components/schemas/LyricsText'
+                        $ref: "#/components/schemas/LyricsText"
             required:
                 - lyrics
         LyricsText:
             description: |-
                 LyricsText represents a single set of lyrics in raw text format.
-                Text can be plain text or LRC format — Navidrome will parse it.
+                Text can be plain text or LRC format - Navidrome will parse it.
             properties:
                 lang:
                     type: string
@@ -58,12 +58,12 @@ components:
                     type: array
                     description: Artists is the list of track artists.
                     items:
-                        $ref: '#/components/schemas/ArtistRef'
+                        $ref: "#/components/schemas/ArtistRef"
                 albumArtists:
                     type: array
                     description: AlbumArtists is the list of album artists.
                     items:
-                        $ref: '#/components/schemas/ArtistRef'
+                        $ref: "#/components/schemas/ArtistRef"
                 duration:
                     type: number
                     format: float

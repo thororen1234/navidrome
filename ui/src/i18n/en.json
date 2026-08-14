@@ -412,6 +412,44 @@
         "configKey": "key",
         "configValue": "value"
       }
+    },
+    "downloader": {
+      "name": "Downloader",
+      "fields": {
+        "tool": "Tool",
+        "sourceUrl": "URL",
+        "library": "Library",
+        "status": "Status",
+        "progress": "Progress",
+        "createdAt": "Submitted"
+      },
+      "status": {
+        "queued": "Queued",
+        "downloading": "Downloading",
+        "completed": "Completed",
+        "error": "Error",
+        "canceled": "Canceled"
+      },
+      "actions": {
+        "submit": "Download",
+        "cancel": "Cancel",
+        "install": "Install",
+        "upgrade": "Upgrade",
+        "repair": "Repair"
+      },
+      "messages": {
+        "submitSuccess": "Download queued",
+        "submitError": "Could not queue download",
+        "cancelSuccess": "Download canceled",
+        "cancelError": "Could not cancel download",
+        "toolActionSuccess": "%{action} finished for %{tool}",
+        "toolActionError": "%{action} failed for %{tool}",
+        "empty": "No downloads yet",
+        "notInstalled": "Not installed"
+      },
+      "tools": {
+        "title": "Downloader Tools"
+      }
     }
   },
   "ra": {
@@ -606,6 +644,7 @@
   },
   "menu": {
     "library": "Library",
+    "tidal": "Tidal Library",
     "librarySelector": {
       "allLibraries": "All Libraries (%{count})",
       "multipleLibraries": "%{selected} of %{total} Libraries",

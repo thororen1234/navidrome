@@ -159,7 +159,7 @@ var _ = Describe("Provider - TopSongs", func() {
 	It("does not stamp the queried MBID onto an already-named different first credit", func() {
 		// The queried artist (One) appears only as a featured collaborator; the displayed first credit
 		// is a DIFFERENT artist (Two) returned without an MBID. Enrichment must NOT assign One's MBID
-		// to Two — only Two's name match (which fails here) or One's own credit may resolve the track.
+		// to Two - only Two's name match (which fails here) or One's own credit may resolve the track.
 		artist1 := model.Artist{ID: "artist-1", Name: "Artist One", MbzArtistID: "mbid-artist-1"}
 		artistRepo.On("GetAll", mock.AnythingOfType("model.QueryOptions")).Return(model.Artists{artist1}, nil)
 

@@ -160,8 +160,8 @@ var _ = Describe("MediaRepository", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(results).To(HaveLen(5))
 
-			// Each returned row must match its GetAll counterpart exactly — proves Phase 2
-			// hydrates full rows (not bare rowids) — and ids must be distinct.
+			// Each returned row must match its GetAll counterpart exactly - proves Phase 2
+			// hydrates full rows (not bare rowids) - and ids must be distinct.
 			byID := map[string]model.MediaFile{}
 			all, err := mr.GetAll()
 			Expect(err).ToNot(HaveOccurred())
@@ -224,7 +224,7 @@ var _ = Describe("MediaRepository", func() {
 		})
 
 		It("randomizes order even when Max exceeds the total", func() {
-			// Same set of rows every time (all 13), but the order must still be shuffled —
+			// Same set of rows every time (all 13), but the order must still be shuffled -
 			// guards against Phase 2's `rowid IN (...)` returning rows in rowid order.
 			first, err := mr.GetRandom(model.QueryOptions{Max: 100})
 			Expect(err).ToNot(HaveOccurred())

@@ -199,7 +199,7 @@ func (api *Router) routes() http.Handler {
 	return caseInsensitivePaths(inner)
 }
 
-// ok writes payload as JSON — the single entry point for every handler. Collections are routed to
+// ok writes payload as JSON - the single entry point for every handler. Collections are routed to
 // the streaming writer, so callers needn't know whether theirs is cursor-backed. ServerId is stamped
 // on any item(s): real Jellyfin always sets it, and it's constant per request.
 //

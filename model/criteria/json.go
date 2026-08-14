@@ -36,7 +36,7 @@ func (uc *unmarshalConjunctionType) UnmarshalJSON(data []byte) error {
 // optionalConjunction is a top-level "all"/"any" value that remembers whether its
 // key was present at all, so a Criteria providing both can be rejected. encoding/json
 // calls UnmarshalJSON even for a JSON null, so present is set whenever the key appears
-// — including as [] or null — while an absent key leaves it false.
+// - including as [] or null - while an absent key leaves it false.
 type optionalConjunction struct {
 	present bool
 	rules   unmarshalConjunctionType

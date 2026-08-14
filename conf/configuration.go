@@ -112,6 +112,8 @@ type configOptions struct {
 	PasswordEncryptionKey           string
 	ExtAuth                         extAuthOptions
 	Plugins                         pluginsOptions
+	Downloader                      downloaderOptions   `json:",omitzero"`
+	Tidal                           tidalOptions        `json:",omitzero"`
 	HTTPHeaders                     httpHeaderOptions   `json:",omitzero"`
 	Prometheus                      prometheusOptions   `json:",omitzero"`
 	Scanner                         scannerOptions      `json:",omitzero"`
@@ -235,7 +237,7 @@ type jellyfinOptions struct {
 	// GET /Users/Public, so Jellyfin clients can show a login user-picker. Empty exposes no users.
 	ExposedPublicUsers string
 	// MaxConcurrentStreams bounds how many collection responses can stream at once. Each holds a DB
-	// cursor — and its pooled connection — for the whole client-paced response, so without a bound
+	// cursor - and its pooled connection - for the whole client-paced response, so without a bound
 	// enough slow clients would take the entire pool and stall the scanner, scrobbles and the UI.
 	MaxConcurrentStreams int
 }
@@ -283,6 +285,35 @@ type pluginsOptions struct {
 	CacheSize  string
 	AutoReload bool
 	LogLevel   string
+}
+
+// downloaderOptions configures the Downloader tab: a queue that shells out to external CLI
+// tools (yt-dlp/scdl/spotdl/bandcamp-dl) to fetch media into a library folder. Disabled by
+// default, since it bundles one-click downloaders with real ToS/DMCA exposure.
+type downloaderOptions struct {
+	Enabled        bool
+	MaxConcurrent  int
+	StagingFolder  Dir
+	YtDlpPath      string // "" = resolve "yt-dlp" on PATH
+	ScdlPath       string // "" = resolve "scdl" on PATH
+	SpotdlPath     string // "" = resolve "spotdl" on PATH
+	BandcampDlPath string // "" = resolve "bandcamp-dl" on PATH
+	PipPath        string // "" = resolve "pip3"/"pip" on PATH
+	UsePipx        bool   // use pipx install/upgrade/reinstall instead of pip install -U/--force-reinstall
+	JobTimeout     time.Duration
+}
+
+// tidalOptions configures the Tidal library tab, backed by a separately-deployed TidalSubsonic
+// instance (a Subsonic-API-compatible bridge to Tidal). Navidrome uses one shared service
+// account for all its users; it never talks to Tidal directly.
+type tidalOptions struct {
+	Enabled       bool
+	BaseURL       string
+	Username      string
+	Password      string //nolint:gosec
+	Timeout       time.Duration
+	StreamTimeout time.Duration
+	AllowDownload bool // gates "download to server", independent of browse/stream
 }
 
 type extAuthOptions struct {
@@ -381,6 +412,10 @@ func Load(noConfigDump bool) {
 		} else {
 			Server.Plugins.Folder = NewDirWithPerm(Server.Plugins.Folder.String(), 0700)
 		}
+	}
+
+	if Server.Downloader.Enabled && Server.Downloader.StagingFolder.String() == "" {
+		Server.Downloader.StagingFolder = NewDirWithPerm(filepath.Join(Server.DataFolder.String(), "downloads"), 0700)
 	}
 
 	Server.ConfigFile = viper.GetViper().ConfigFileUsed()
@@ -1074,6 +1109,23 @@ func setViperDefaults() {
 	viper.SetDefault("plugins.cachesize", "200MB")
 	viper.SetDefault("plugins.autoreload", false)
 	viper.SetDefault("plugins.loglevel", "")
+	viper.SetDefault("downloader.enabled", false)
+	viper.SetDefault("downloader.maxconcurrent", 2)
+	viper.SetDefault("downloader.stagingfolder", "")
+	viper.SetDefault("downloader.ytdlppath", "")
+	viper.SetDefault("downloader.scdlpath", "")
+	viper.SetDefault("downloader.spotdlpath", "")
+	viper.SetDefault("downloader.bandcampdlpath", "")
+	viper.SetDefault("downloader.pippath", "")
+	viper.SetDefault("downloader.usepipx", false)
+	viper.SetDefault("downloader.jobtimeout", 30*time.Minute)
+	viper.SetDefault("tidal.enabled", false)
+	viper.SetDefault("tidal.baseurl", "")
+	viper.SetDefault("tidal.username", "")
+	viper.SetDefault("tidal.password", "")
+	viper.SetDefault("tidal.timeout", 15*time.Second)
+	viper.SetDefault("tidal.streamtimeout", 2*time.Hour)
+	viper.SetDefault("tidal.allowdownload", false)
 
 	// DevFlags. These are used to enable/disable debugging and incomplete features
 	viper.SetDefault("devlogsourceline", false)
@@ -1095,7 +1147,7 @@ func setViperDefaults() {
 	viper.SetDefault("devartworkthrottlebacklogtimeout", consts.RequestThrottleBacklogTimeout)
 	viper.SetDefault("devartworkthrottlebuffered", true)
 	// Half the CPU count (min 2), so local resolution scales with the host but stays under the
-	// SQLite pool (MaxOpenConns) — leaving connections for the scanner, scrobbles and the UI.
+	// SQLite pool (MaxOpenConns) - leaving connections for the scanner, scrobbles and the UI.
 	viper.SetDefault("devartworkworkerconcurrency", max(2, runtime.NumCPU()/2))
 	// External RPS gates outbound calls to third-party services (per service); it is bounded by
 	// their tolerance, not the host, so it stays a small constant regardless of CPU count.
@@ -1172,7 +1224,7 @@ func getConfigFile(cfgFile string) string {
 //
 // It bounds concurrent *readers*: SQLite serializes writers on a single database-wide write lock, so
 // more connections buy no write parallelism. A connection is held while blocked on disk I/O or on a
-// slow HTTP client, neither of which is CPU-bound — the CPU-bound knob is DevScannerThreads — so the
+// slow HTTP client, neither of which is CPU-bound - the CPU-bound knob is DevScannerThreads - so the
 // count is only loosely related to core count, and the floor is what matters on small machines.
 func MaxOpenConns() int {
 	return max(4, runtime.NumCPU())

@@ -39,7 +39,7 @@ var _ = Describe("fromExternalFile", func() {
 		fsys := fstest.MapFS{
 			"a/cover.jpg": &fstest.MapFile{Data: []byte("a")},
 		}
-		// "missing/cover.jpg" is in candidates but not in the FS — should be skipped.
+		// "missing/cover.jpg" is in candidates but not in the FS - should be skipped.
 		f := fromExternalFile(GinkgoT().Context(), fsys, []string{"missing/cover.jpg", "a/cover.jpg"}, "cover.*")
 		r, path, err := f()
 		Expect(err).ToNot(HaveOccurred())

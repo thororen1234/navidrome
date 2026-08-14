@@ -661,7 +661,7 @@ var _ = Describe("Scanner", Ordered, func() {
 		It("leaves no non-missing orphan artist after purging an artist's only content", func() {
 			// Guards the orphan case: with PurgeMissing on, removing an artist's last file hard-deletes
 			// its media_file_artists rows, RefreshStats recomputes its stats to '{}', and the cleanup
-			// drops its last library_artist row — leaving the artist row alive but orphaned. RefreshStats
+			// drops its last library_artist row - leaving the artist row alive but orphaned. RefreshStats
 			// must then mark it missing (see markOrphansMissing).
 			DeferCleanup(configtest.SetupConfig())
 			conf.Server.Scanner.PurgeMissing = consts.PurgeMissingAlways

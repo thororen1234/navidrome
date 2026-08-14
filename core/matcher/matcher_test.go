@@ -328,7 +328,7 @@ var _ = Describe("Matcher", func() {
 				songs := []agents.Song{
 					{Name: "Crazy", Artists: []agents.Artist{{Name: "INXS"}}},
 				}
-				// "Par-T-One vs. INXS" — display Artist is the collaboration, but INXS is a
+				// "Par-T-One vs. INXS" - display Artist is the collaboration, but INXS is a
 				// credited artist participant. Searching INXS must match it.
 				track := model.MediaFile{
 					ID: "collab", Title: "Crazy", Artist: "Par-T-One vs. INXS",
@@ -422,7 +422,7 @@ var _ = Describe("Matcher", func() {
 		})
 
 		// These tests register their own track-fetch expectations per-test (to inject
-		// an error), so they use allowIdentifierPhases — NOT allowOtherPhases, which would
+		// an error), so they use allowIdentifierPhases - NOT allowOtherPhases, which would
 		// add a .Maybe() title-phase catch-all that masks the injected error.
 		Context("title phase DB errors", func() {
 			It("returns an error when the title query fails and nothing else matched", func() {
@@ -763,7 +763,7 @@ var _ = Describe("Matcher", func() {
 			// Two tracks with the same title and album; only the one whose resolved artist
 			// carries mbid-1 (and whose album MBID matches) wins via Level 5. Without the
 			// resolved MBID, both tracks tie at Level 3 (name+album) and the first wins by
-			// chance — verifiable by RED-proof: see task-2-report.md.
+			// chance - verifiable by RED-proof: see task-2-report.md.
 			precise := model.MediaFile{
 				ID: "precise", Title: "Song A", Artist: "Artist One", Album: "Album One", MbzAlbumID: "album-mbid-1",
 				Participants: artistParticipants(model.Artist{ID: "a1", Name: "Artist One", OrderArtistName: "artist one", MbzArtistID: "mbid-1"}),

@@ -129,7 +129,7 @@ func normalizeCueEndsByAgent(cues []Cue, fallbackEnd *int64) []Cue {
 // NormalizeCueEnds resolves missing cue end times within a single ordered cue
 // group: each end is filled from the next cue's start, then from fallbackEnd,
 // and is clamped so it never precedes the cue's own start nor overruns the next
-// cue. End times are all-or-none — if any cue still lacks an end afterwards, all
+// cue. End times are all-or-none - if any cue still lacks an end afterwards, all
 // ends in the group are cleared. The input slice is never mutated.
 //
 // Exported because the Subsonic enhanced-lyrics serializer resolves cue ends

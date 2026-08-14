@@ -23,7 +23,7 @@ import (
 //  5. Absent
 //
 // The library is an in-memory FS, but uploaded/sidecar/local-external images are real files on
-// disk — the resolver reads them via os.Open, so those tests place them in a real tempdir.
+// disk - the resolver reads them via os.Open, so those tests place them in a real tempdir.
 var _ = Describe("Playlist artwork resolution", func() {
 	BeforeEach(func() {
 		setupResolutionHarness()
@@ -94,7 +94,7 @@ var _ = Describe("Playlist artwork resolution", func() {
 	})
 
 	When("a playlist has an http(s) ExternalImageURL and EnableM3UExternalAlbumArt is false", func() {
-		// (no local files — the http source is gated off, so resolution settles absent)
+		// (no local files - the http source is gated off, so resolution settles absent)
 		It("skips the URL and settles absent", func() {
 			conf.Server.EnableM3UExternalAlbumArt = false
 			pl := putPlaylist(model.Playlist{ID: "pl-5", Name: "HttpGated", ExternalImageURL: "https://example.com/cover.jpg"})

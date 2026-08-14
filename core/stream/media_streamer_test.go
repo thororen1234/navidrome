@@ -65,7 +65,7 @@ var _ = Describe("MediaStreamer", func() {
 		})
 		It("rejects transcode requests beyond MaxConcurrent with ErrTooManyTranscodes", func() {
 			// Use an ffmpeg whose Read blocks indefinitely so the cache's
-			// background copy can't drain the source and release the slot —
+			// background copy can't drain the source and release the slot -
 			// keeping the single transcode slot pinned for this test.
 			pr, pw := io.Pipe()
 			DeferCleanup(func() { _ = pw.Close() })

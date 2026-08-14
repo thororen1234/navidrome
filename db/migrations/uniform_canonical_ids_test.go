@@ -34,7 +34,7 @@ var _ = Describe("upUniformCanonicalIds", func() {
 		var err error
 		db, err = sql.Open("sqlite3", "file::memory:")
 		Expect(err).ToNot(HaveOccurred())
-		db.SetMaxOpenConns(1) // non-shared :memory: — every new conn is a fresh empty DB
+		db.SetMaxOpenConns(1) // non-shared :memory: - every new conn is a fresh empty DB
 		DeferCleanup(func() { _ = db.Close() })
 
 		// Minimal fixture: every table/column idColumns and the list rewrites touch.

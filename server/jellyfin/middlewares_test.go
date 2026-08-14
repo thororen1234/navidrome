@@ -228,7 +228,7 @@ var _ = Describe("parseMediaBrowserAuth", func() {
 
 var _ = Describe("normalizeQueryKeys", func() {
 	// keyFor runs a request through normalizeQueryKeys and reports the value the handler sees for
-	// the given (lowercase) key — i.e. what a case-insensitive read would find.
+	// the given (lowercase) key - i.e. what a case-insensitive read would find.
 	keyFor := func(rawQuery, key string) string {
 		r := httptest.NewRequest("GET", "/Items?"+rawQuery, nil)
 		var got string
@@ -295,7 +295,7 @@ var _ = Describe("throttleStreams", func() {
 	})
 
 	It("queues the excess rather than rejecting it", func() {
-		// All 8 still complete — they wait for a slot instead of getting a 429.
+		// All 8 still complete - they wait for a slot instead of getting a 429.
 		var served int32
 		release := make(chan struct{})
 		h := throttleStreams(2)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

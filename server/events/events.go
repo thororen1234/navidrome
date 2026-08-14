@@ -68,6 +68,27 @@ type NowPlayingCount struct {
 	Count int `json:"count"`
 }
 
+// DownloadStatus reports a downloader queue job's current state, broadcast whenever the worker
+// updates progress, starts, completes, or fails a job.
+type DownloadStatus struct {
+	baseEvent
+	ID            string  `json:"id"`
+	Status        string  `json:"status"`
+	Progress      float64 `json:"progress"`
+	StatusMessage string  `json:"statusMessage,omitempty"`
+	Error         string  `json:"error,omitempty"`
+}
+
+// ToolInstallStatus reports progress of a downloader tool's install/upgrade/repair action.
+type ToolInstallStatus struct {
+	baseEvent
+	Tool    string `json:"tool"`
+	Action  string `json:"action"`
+	Running bool   `json:"running"`
+	Output  string `json:"output,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
 func (rr *RefreshResource) With(resource string, ids ...string) *RefreshResource {
 	if rr.resources == nil {
 		rr.resources = make(map[string][]string)

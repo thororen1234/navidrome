@@ -96,7 +96,7 @@ var _ = Describe("Smart playlist criteria SQL", func() {
 		Entry("gt bool keeps coalesce", criteria.Gt{"loved": false},
 			"COALESCE(annotation.starred, false) > ?", false),
 		// A list value on a bool field is non-scalar, so it keeps the COALESCE form too (same as the
-		// numeric list case) — otherwise a NULL column would diverge from the original.
+		// numeric list case) - otherwise a NULL column would diverge from the original.
 		Entry("is bool list keeps coalesce", criteria.Is{"loved": []any{true}},
 			"COALESCE(annotation.starred, false) IN (?)", true),
 		Entry("tag is", criteria.Is{"genre": "Rock"}, "exists (select 1 from json_tree(media_file.tags, '$.genre') where key='value' and value = ?)", "Rock"),
@@ -113,27 +113,27 @@ var _ = Describe("Smart playlist criteria SQL", func() {
 		Entry("rgAlbumGain is", criteria.Is{"rgAlbumGain": 0}, "media_file.rg_album_gain = ?", 0),
 		Entry("rgAlbumGain gt", criteria.Gt{"rgAlbumGain": -6.0}, "media_file.rg_album_gain > ?", -6.0),
 		Entry("rgTrackPeak lt", criteria.Lt{"rgTrackPeak": 1.0}, "media_file.rg_track_peak < ?", 1.0),
-		// isMissing — tags
+		// isMissing - tags
 		Entry("isMissing tag [true]", criteria.IsMissing{"genre": true},
 			"not exists (select 1 from json_tree(media_file.tags, '$.genre') where key='value')"),
 		Entry("isMissing tag [false]", criteria.IsMissing{"genre": false},
 			"exists (select 1 from json_tree(media_file.tags, '$.genre') where key='value')"),
-		// isMissing — roles
+		// isMissing - roles
 		Entry("isMissing role [true]", criteria.IsMissing{"artist": true},
 			"not exists (select 1 from media_file_artists mfa where mfa.media_file_id = media_file.id and mfa.role = ?)", "artist"),
 		Entry("isMissing role [false]", criteria.IsMissing{"artist": false},
 			"exists (select 1 from media_file_artists mfa where mfa.media_file_id = media_file.id and mfa.role = ?)", "artist"),
-		// isPresent — tags
+		// isPresent - tags
 		Entry("isPresent tag [true]", criteria.IsPresent{"genre": true},
 			"exists (select 1 from json_tree(media_file.tags, '$.genre') where key='value')"),
 		Entry("isPresent tag [false]", criteria.IsPresent{"genre": false},
 			"not exists (select 1 from json_tree(media_file.tags, '$.genre') where key='value')"),
-		// isPresent — roles
+		// isPresent - roles
 		Entry("isPresent role [true]", criteria.IsPresent{"composer": true},
 			"exists (select 1 from media_file_artists mfa where mfa.media_file_id = media_file.id and mfa.role = ?)", "composer"),
 		Entry("isPresent role [false]", criteria.IsPresent{"composer": false},
 			"not exists (select 1 from media_file_artists mfa where mfa.media_file_id = media_file.id and mfa.role = ?)", "composer"),
-		// isMissing/isPresent — nullable column fields (ReplayGain)
+		// isMissing/isPresent - nullable column fields (ReplayGain)
 		Entry("isMissing rgAlbumGain [true]", criteria.IsMissing{"rgAlbumGain": true},
 			"(media_file.rg_album_gain IS NULL)"),
 		Entry("isMissing rgAlbumGain [false]", criteria.IsMissing{"rgAlbumGain": false},
@@ -142,12 +142,12 @@ var _ = Describe("Smart playlist criteria SQL", func() {
 			"(media_file.rg_track_peak IS NOT NULL)"),
 		Entry("isPresent rgTrackPeak [false]", criteria.IsPresent{"rgTrackPeak": false},
 			"(media_file.rg_track_peak IS NULL)"),
-		// isMissing — replaygain_* tag-name alias resolves to the nullable column (issue #5584)
+		// isMissing - replaygain_* tag-name alias resolves to the nullable column (issue #5584)
 		Entry("isMissing replaygain_album_gain alias [true]", criteria.IsMissing{"replaygain_album_gain": true},
 			"(media_file.rg_album_gain IS NULL)"),
 		Entry("isPresent replaygain_album_gain alias [true]", criteria.IsPresent{"replaygain_album_gain": true},
 			"(media_file.rg_album_gain IS NOT NULL)"),
-		// isMissing/isPresent — string column fields (empty string means missing)
+		// isMissing/isPresent - string column fields (empty string means missing)
 		Entry("isMissing mbz_recording_id [true]", criteria.IsMissing{"mbz_recording_id": true},
 			"(media_file.mbz_recording_id IS NULL OR media_file.mbz_recording_id = ?)", ""),
 		Entry("isMissing mbz_recording_id [false]", criteria.IsMissing{"mbz_recording_id": false},
@@ -165,7 +165,7 @@ var _ = Describe("Smart playlist criteria SQL", func() {
 			"(media_file.lyrics IS NOT NULL AND media_file.lyrics <> ? AND media_file.lyrics <> ?)", "", "[]"),
 		Entry("isPresent lyrics [false]", criteria.IsPresent{"lyrics": false},
 			"(media_file.lyrics IS NULL OR media_file.lyrics = ? OR media_file.lyrics = ?)", "", "[]"),
-		// isMissing/isPresent — nullable numeric columns (BPM, BitDepth)
+		// isMissing/isPresent - nullable numeric columns (BPM, BitDepth)
 		Entry("isMissing bpm [true]", criteria.IsMissing{"bpm": true},
 			"(media_file.bpm IS NULL)"),
 		Entry("isPresent bpm [true]", criteria.IsPresent{"bpm": true},
@@ -174,7 +174,7 @@ var _ = Describe("Smart playlist criteria SQL", func() {
 			"(media_file.bit_depth IS NULL)"),
 		Entry("isPresent bitdepth [false]", criteria.IsPresent{"bitdepth": false},
 			"(media_file.bit_depth IS NULL)"),
-		// isMissing/isPresent — more string column fields (empty string means missing)
+		// isMissing/isPresent - more string column fields (empty string means missing)
 		Entry("isMissing album [true]", criteria.IsMissing{"album": true},
 			"(media_file.album IS NULL OR media_file.album = ?)", ""),
 		Entry("isMissing comment [true]", criteria.IsMissing{"comment": true},

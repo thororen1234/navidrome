@@ -308,7 +308,7 @@ var _ = Describe("Transcode endpoints", func() {
 			})
 
 			It("does not raise a lower client-declared limit", func() {
-				// Client declares 192 kbps (192000 bps); player cap is 320 — client wins.
+				// Client declares 192 kbps (192000 bps); player cap is 320 - client wins.
 				body := `{"maxAudioBitrate":192000,"directPlayProfiles":[{"containers":["flac"],"protocols":["http"]}]}`
 				r := withPlayer(newJSONPostRequest("mediaId=song-1&mediaType=song", body), 320)
 
@@ -319,7 +319,7 @@ var _ = Describe("Transcode endpoints", func() {
 			})
 
 			It("lowers a higher client-declared limit to the player cap", func() {
-				// Client declares 320 kbps (320000 bps); player cap is 192 — player wins.
+				// Client declares 320 kbps (320000 bps); player cap is 192 - player wins.
 				body := `{"maxAudioBitrate":320000,"directPlayProfiles":[{"containers":["flac"],"protocols":["http"]}]}`
 				r := withPlayer(newJSONPostRequest("mediaId=song-1&mediaType=song", body), 192)
 

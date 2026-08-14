@@ -112,7 +112,7 @@ describe('decisionService', () => {
       mockFetchFn.mockResolvedValue(makeFakeDecision(3600 * 1000))
       await service.getDecision('song-1', fakeProfile)
 
-      // 30 minutes later — still fresh
+      // 30 minutes later - still fresh
       vi.advanceTimersByTime(1800 * 1000)
       await service.getDecision('song-1', fakeProfile)
       expect(mockFetchFn).toHaveBeenCalledTimes(1)

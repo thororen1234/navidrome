@@ -84,10 +84,10 @@ func (s *playlists) savePlaylist(ctx context.Context, pls *model.Playlist) (stri
 //
 // cols names the fields the client actually sent in the JSON body (extracted by
 // rest.Put). When non-empty, fields outside cols are not considered changed and
-// are left untouched — this prevents partial requests like bulk "Make Public"
+// are left untouched - this prevents partial requests like bulk "Make Public"
 // (body: {"public": true}) from wiping fields that just happen to be zero in
 // the deserialized entity (see issue #5541). An empty cols means "treat the
-// entity as a complete record" — preserved for callers that don't use the REST
+// entity as a complete record" - preserved for callers that don't use the REST
 // wrapper.
 func (s *playlists) updatePlaylistEntity(ctx context.Context, id string, entity *model.Playlist, cols ...string) error {
 	current, err := s.checkWritable(ctx, id)
@@ -154,7 +154,7 @@ func (s *playlists) applyContentUpdate(ctx context.Context, current, entity *mod
 	return s.updateMetadata(ctx, s.ds, current, namePtr, commentPtr, publicPtr)
 }
 
-// applyFlagsOnly handles updates that only toggle sync/public — skips
+// applyFlagsOnly handles updates that only toggle sync/public - skips
 // updatedAt so cover art URLs stay stable.
 func (s *playlists) applyFlagsOnly(ctx context.Context, current, entity *model.Playlist,
 	sent func(string) bool,
@@ -178,7 +178,7 @@ func (s *playlists) applyFlagsOnly(ctx context.Context, current, entity *model.P
 // in the request body. Matching is case-insensitive to mirror Go's json
 // decoder, which populates struct fields from case-variant keys like
 // {"Name":"x"} or {"OWNERID":"y"}. An empty cols list means "treat the entity
-// as a full record" — every field is considered sent.
+// as a full record" - every field is considered sent.
 func sentFields(cols []string) func(string) bool {
 	if len(cols) == 0 {
 		return func(string) bool { return true }

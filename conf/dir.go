@@ -7,7 +7,7 @@ import (
 )
 
 // Dir wraps a directory path and creates the directory on demand. Dir is a
-// plain value type — safe to copy, compare, and print via reflection-based
+// plain value type - safe to copy, compare, and print via reflection-based
 // formatters (pretty.Sprintf("%# v", ...)) without any concurrency hazards.
 // Directory creation is delegated to os.MkdirAll on every Path() call;
 // MkdirAll is idempotent, so repeated calls cost one stat syscall when the

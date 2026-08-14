@@ -49,7 +49,7 @@ func prune(ctx context.Context, ds model.DataStore, store *ImageStore) error {
 		return err
 	}
 	removed, err := store.Sweep(ctx, cutoff, func(hash, ext string) bool {
-		// A known hash under a stale extension is a superseded mime variant — reclaim it.
+		// A known hash under a stale extension is a superseded mime variant - reclaim it.
 		m, ok := mimes[hash]
 		return ok && ext == extForMime(m)
 	})

@@ -208,7 +208,7 @@ var _ = Describe("Album artwork resolution", func() {
 	When("the album has no cover and CoverArtPriority lists only file patterns", func() {
 		// Artist/
 		// └── Album/
-		//     └── 01 - Track.mp3       (no image files — settles absent)
+		//     └── 01 - Track.mp3       (no image files - settles absent)
 		It("settles absent", func() {
 			conf.Server.CoverArtPriority = "cover.*, folder.*"
 			setLayout(fstest.MapFS{
@@ -361,7 +361,7 @@ var _ = Describe("Album artwork resolution", func() {
 		// ├── Album A/
 		// │   └── 01 - Track.mp3       (album: "Album A")
 		// ├── Album A bonus/
-		// │   └── 02 - Track.mp3       (album: "Album A" — same album, second folder)
+		// │   └── 02 - Track.mp3       (album: "Album A" - same album, second folder)
 		// └── Album B/
 		//     ├── 01 - Track.mp3
 		//     └── cover.jpg

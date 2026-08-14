@@ -43,6 +43,8 @@ const defaultConfig = {
   separator: '/',
   enableInspect: true,
   pluginsEnabled: true,
+  downloaderEnabled: false,
+  tidalEnabled: false,
 }
 
 let config

@@ -36,7 +36,7 @@ var _ = Describe("Disc artwork resolution", func() {
 	When("the album has no per-disc image and no album cover", func() {
 		// Artist/
 		// └── Album/
-		//     └── 01 - Track.mp3       (no disc or album art — nothing to serve)
+		//     └── 01 - Track.mp3       (no disc or album art - nothing to serve)
 		It("reports the disc lookup as unavailable", func() {
 			conf.Server.DiscArtPriority = "disc*.*, cd*.*"
 			conf.Server.CoverArtPriority = "cover.*, folder.*"
@@ -157,10 +157,10 @@ var _ = Describe("Disc artwork resolution", func() {
 		// └── Album/
 		//     ├── CD1/
 		//     │   ├── 01 - Track.mp3
-		//     │   └── disc1.jpg        (ignored — DiscArtPriority is empty)
+		//     │   └── disc1.jpg        (ignored - DiscArtPriority is empty)
 		//     ├── CD2/
 		//     │   ├── 01 - Track.mp3
-		//     │   └── cd2.png          (ignored — DiscArtPriority is empty)
+		//     │   └── cd2.png          (ignored - DiscArtPriority is empty)
 		//     └── cover.jpg            ← used for every disc (album-level fallback)
 		It("skips every disc-level source and returns the album cover", func() {
 			conf.Server.DiscArtPriority = ""
@@ -280,7 +280,7 @@ var _ = Describe("Disc artwork resolution", func() {
 	})
 
 	// https://github.com/navidrome/navidrome/issues/5456
-	// Top-level album variant — album folder at library root (Path=".").
+	// Top-level album variant - album folder at library root (Path=".").
 	When("a top-level multi-disc album has cover.jpg and per-disc folder.jpg", func() {
 		// Album/                       (top-level, Path=".")
 		// ├── cover.jpg                ← album-level cover

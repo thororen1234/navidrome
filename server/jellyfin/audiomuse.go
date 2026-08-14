@@ -35,7 +35,7 @@ func (api *Router) audioMuseInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 // audioMuseHealth is a liveness probe: 200 with an empty body when a sonic provider is loaded, else
-// 404 — mirroring the reference plugin, which returns 200 when its backend is reachable.
+// 404 - mirroring the reference plugin, which returns 200 when its backend is reachable.
 func (api *Router) audioMuseHealth(w http.ResponseWriter, r *http.Request) {
 	if api.sonic == nil || !api.sonic.HasProvider() {
 		api.notFound(w, r)

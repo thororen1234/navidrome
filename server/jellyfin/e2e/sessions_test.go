@@ -29,7 +29,7 @@ var _ = Describe("Sessions", func() {
 			id := songID("So What")
 			mf, err := ds.MediaFile(ctx).Get(id)
 			Expect(err).ToNot(HaveOccurred())
-			// Report a stop at the end of the track — comfortably past 50% / the 4-minute cap.
+			// Report a stop at the end of the track - comfortably past 50% / the 4-minute cap.
 			Expect(post("/Sessions/Playing/Stopped", reportBody(id, ticks(int64(mf.Duration*1000)))).Code).To(Equal(http.StatusNoContent))
 
 			mf, err = ds.MediaFile(ctx).Get(id)

@@ -244,7 +244,7 @@ func NewTranscodingCache() TranscodingCache {
 			// client disconnect cancels ffmpeg and frees the slot promptly.
 			// Otherwise a client could open many transcodes, disconnect
 			// immediately, and still leave the configured cap's worth of
-			// ffmpeg processes draining in the background — which is exactly
+			// ffmpeg processes draining in the background - which is exactly
 			// the DoS the limiter is meant to prevent.
 			//
 			// When the limiter is disabled, preserve the legacy behavior
@@ -290,7 +290,7 @@ func userName(ctx context.Context) string {
 
 // limiterKey returns the per-user bucket key used by the transcode limiter.
 // For anonymous requests (e.g. public shares) it returns the empty string,
-// which signals the limiter to skip the per-user cap entirely — otherwise
+// which signals the limiter to skip the per-user cap entirely - otherwise
 // every anonymous viewer of a public share would collide on the same key
 // and starve each other within MaxConcurrentPerUser slots. The global cap
 // still applies and remains the protection against runaway anonymous load.

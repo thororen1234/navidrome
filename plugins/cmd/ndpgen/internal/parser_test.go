@@ -214,7 +214,7 @@ type RegularInterface interface {
 		})
 
 		It("should resolve structs defined in a sibling file of the same package", func() {
-			// types.go defines Track and Artist — no host service here
+			// types.go defines Track and Artist - no host service here
 			typesSrc := `package host
 
 // Artist is a track participant.
@@ -338,7 +338,7 @@ type MatcherService interface {
 			for _, a := range services[0].SharedAliases {
 				byName[a.Name] = a
 			}
-			// Track alias is in a sibling file — must be resolved package-wide
+			// Track alias is in a sibling file - must be resolved package-wide
 			Expect(byName).To(HaveKey("Track"))
 			Expect(byName["Track"].Target).To(Equal("types.Track"))
 		})

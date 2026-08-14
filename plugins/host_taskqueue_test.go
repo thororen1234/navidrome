@@ -163,7 +163,7 @@ var _ = Describe("TaskQueueService", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			// Next queue should fail — no budget remaining
+			// Next queue should fail - no budget remaining
 			err = service.CreateQueue(ctx, "over-budget", host.QueueConfig{
 				Concurrency: 1,
 			})
@@ -294,7 +294,7 @@ var _ = Describe("TaskQueueService", func() {
 			// Wait for the blocker task to start running
 			Eventually(started).WithTimeout(5 * time.Second).Should(BeClosed())
 
-			// Enqueue a second task — it stays pending since the worker is busy
+			// Enqueue a second task - it stays pending since the worker is busy
 			taskID, err := service.Enqueue(ctx, "cancel-test", []byte("cancel-me"))
 			Expect(err).ToNot(HaveOccurred())
 
@@ -361,7 +361,7 @@ var _ = Describe("TaskQueueService", func() {
 			// Wait for the blocker task to start running
 			Eventually(started).WithTimeout(5 * time.Second).Should(BeClosed())
 
-			// Enqueue several more tasks — they stay pending since the worker is busy
+			// Enqueue several more tasks - they stay pending since the worker is busy
 			var pendingIDs []string
 			for i := range 3 {
 				taskID, err := service.Enqueue(ctx, "clear-test", fmt.Appendf(nil, "task-%d", i))
@@ -424,7 +424,7 @@ var _ = Describe("TaskQueueService", func() {
 			// Wait for it to start running
 			Eventually(started).WithTimeout(5 * time.Second).Should(Receive())
 
-			// Clear the queue — should not affect the running task
+			// Clear the queue - should not affect the running task
 			cleared, err := service.ClearQueue(ctx, "clear-running")
 			Expect(err).ToNot(HaveOccurred())
 			Expect(cleared).To(Equal(int64(0)))
@@ -1188,7 +1188,7 @@ var _ = Describe("TaskQueueService Integration", Ordered, func() {
 			// Wait for the first task to complete (burst token)
 			time.Sleep(200 * time.Millisecond)
 
-			// Clear the queue — should cancel remaining pending tasks
+			// Clear the queue - should cancel remaining pending tasks
 			output, err := callTestTaskQueue(ctx, testTaskQueueInput{
 				Operation: "clear_queue",
 				QueueName: "test-clear",

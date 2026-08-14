@@ -13,7 +13,7 @@ func init() {
 
 func upAddAlbumReplaygain(ctx context.Context, tx *sql.Tx) error {
 	// Backfill the most-frequent value per album (matching MediaFiles.ToAlbum), staging RG-bearing rows
-	// into an indexed temp table — a correlated subquery over a windowed CTE re-scans media_file per album.
+	// into an indexed temp table - a correlated subquery over a windowed CTE re-scans media_file per album.
 	_, err := tx.ExecContext(ctx, `
 ALTER TABLE album ADD COLUMN rg_album_gain real;
 ALTER TABLE album ADD COLUMN rg_album_peak real;

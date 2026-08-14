@@ -32,7 +32,7 @@ func throttleStreams(limit int) func(http.Handler) http.Handler {
 
 // caseInsensitivePaths lowercases the request path so chi (case-sensitive) matches the
 // lowercase-registered routes; Jellyfin clients route case-insensitively. It lowercases id/param
-// segments too, which is safe because every id the API emits — user ids included — is lowercase hex
+// segments too, which is safe because every id the API emits - user ids included - is lowercase hex
 // (dto.EncodeID).
 func caseInsensitivePaths(r chi.Router) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -49,7 +49,7 @@ func caseInsensitivePaths(r chi.Router) http.Handler {
 // normalizeQueryKeys folds query-parameter keys to lowercase so handlers can read params
 // case-insensitively, matching real Jellyfin. Clients disagree on casing (Finamp sends PascalCase,
 // Jellify and the Jellyfin TypeScript SDK camelCase), so a case-sensitive read would drop one
-// client's filters, sort and paging. Only keys are folded — values keep their case. The original
+// client's filters, sort and paging. Only keys are folded - values keep their case. The original
 // request is left untouched (a rewritten copy goes downstream) so logging shows the client's casing.
 func normalizeQueryKeys(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -84,7 +84,7 @@ var mediaBrowserAuthField = regexp.MustCompile(`(\w+)="([^"]*)"`)
 // parseMediaBrowserAuth reads the MediaBrowser-scheme authorization header, e.g.
 // `MediaBrowser Client="Finamp", Device="Pixel", DeviceId="abc", Version="1.0", Token="jwt"`.
 // The recommended Authorization header is preferred, but only when it actually carries
-// MediaBrowser data — a reverse proxy may inject Basic/Digest credentials there while the client
+// MediaBrowser data - a reverse proxy may inject Basic/Digest credentials there while the client
 // sends the deprecated X-Emby-Authorization. Field values are URL-decoded: Jellify (@jellyfin/sdk)
 // percent-encodes them (Device="Pixel%208%20Pro"), while Finamp sends them raw; unescapeField
 // leaves a raw value untouched.

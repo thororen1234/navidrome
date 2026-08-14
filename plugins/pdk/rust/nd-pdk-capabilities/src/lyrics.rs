@@ -7,17 +7,29 @@ use serde::{Deserialize, Serialize};
 
 // Helper functions for skip_serializing_if with numeric types
 #[allow(dead_code)]
-fn is_zero_i32(value: &i32) -> bool { *value == 0 }
+fn is_zero_i32(value: &i32) -> bool {
+    *value == 0
+}
 #[allow(dead_code)]
-fn is_zero_u32(value: &u32) -> bool { *value == 0 }
+fn is_zero_u32(value: &u32) -> bool {
+    *value == 0
+}
 #[allow(dead_code)]
-fn is_zero_i64(value: &i64) -> bool { *value == 0 }
+fn is_zero_i64(value: &i64) -> bool {
+    *value == 0
+}
 #[allow(dead_code)]
-fn is_zero_u64(value: &u64) -> bool { *value == 0 }
+fn is_zero_u64(value: &u64) -> bool {
+    *value == 0
+}
 #[allow(dead_code)]
-fn is_zero_f32(value: &f32) -> bool { *value == 0.0 }
+fn is_zero_f32(value: &f32) -> bool {
+    *value == 0.0
+}
 #[allow(dead_code)]
-fn is_zero_f64(value: &f64) -> bool { *value == 0.0 }
+fn is_zero_f64(value: &f64) -> bool {
+    *value == 0.0
+}
 
 #[deprecated(note = "use nd_pdk::types::ArtistRef")]
 pub type ArtistRef = nd_pdk_types::ArtistRef;
@@ -36,7 +48,7 @@ pub struct GetLyricsResponse {
     pub lyrics: Vec<LyricsText>,
 }
 /// LyricsText represents a single set of lyrics in raw text format.
-/// Text can be plain text or LRC format — Navidrome will parse it.
+/// Text can be plain text or LRC format - Navidrome will parse it.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LyricsText {
@@ -117,7 +129,9 @@ impl std::error::Error for Error {}
 
 impl Error {
     pub fn new(message: impl Into<String>) -> Self {
-        Self { message: message.into() }
+        Self {
+            message: message.into(),
+        }
     }
 }
 
@@ -135,7 +149,7 @@ macro_rules! register_lyrics {
     ($plugin_type:ty) => {
         #[extism_pdk::plugin_fn]
         pub fn nd_lyrics_get_lyrics(
-            req: extism_pdk::Json<$crate::lyrics::GetLyricsRequest>
+            req: extism_pdk::Json<$crate::lyrics::GetLyricsRequest>,
         ) -> extism_pdk::FnResult<extism_pdk::Json<$crate::lyrics::GetLyricsResponse>> {
             let plugin = <$plugin_type>::default();
             let result = $crate::lyrics::Lyrics::get_lyrics(&plugin, req.into_inner())?;

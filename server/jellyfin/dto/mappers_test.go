@@ -57,7 +57,7 @@ var _ = Describe("mappers", func() {
 			Expect(item.MediaSources[0].Size).To(Equal(int64(2_500_000)))
 		})
 
-		// SortName must match the server sort order — see the sortName helper.
+		// SortName must match the server sort order - see the sortName helper.
 		Describe("SortName", func() {
 			song := model.MediaFile{ID: testID("s1"), Title: "The Song", SortTitle: "Song, The", OrderTitle: "song"}
 			ar := model.Artist{ID: testID("art-1"), Name: "The B-52's", SortArtistName: "B-52's, The", OrderArtistName: "b-52's"}

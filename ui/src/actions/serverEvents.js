@@ -4,6 +4,8 @@ export const EVENT_REFRESH_RESOURCE = 'refreshResource'
 export const EVENT_NOW_PLAYING_COUNT = 'nowPlayingCount'
 export const EVENT_NOW_PLAYING_COUNT_SYNC = 'nowPlayingCountSync'
 export const EVENT_STREAM_RECONNECTED = 'streamReconnected'
+export const EVENT_DOWNLOAD_STATUS = 'downloadStatus'
+export const EVENT_TOOL_INSTALL_STATUS = 'toolInstallStatus'
 
 export const processEvent = (type, data) => ({
   type,

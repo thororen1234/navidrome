@@ -164,7 +164,7 @@ var _ = Describe("Artist artwork resolution", func() {
 		//         └── <id>_upload.jpg  ← wins (uploaded image beats the priority chain)
 		// Library:
 		// Artist/
-		// ├── artist.jpg               (ignored — uploaded image comes first)
+		// ├── artist.jpg               (ignored - uploaded image comes first)
 		// └── Album/
 		//     └── 01 - Track.mp3
 		It("prefers the uploaded image over any priority-chain match", func() {

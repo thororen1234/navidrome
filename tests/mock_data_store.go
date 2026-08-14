@@ -30,6 +30,7 @@ type MockDataStore struct {
 	MockedPlugin         model.PluginRepository
 	MockedArtwork        model.ArtworkRepository
 	MockedArtworkQueue   model.ArtworkQueueRepository
+	MockedDownload       model.DownloadRepository
 	scrobbleBufferMu     sync.Mutex
 	repoMu               sync.Mutex
 
@@ -319,6 +320,19 @@ func (db *MockDataStore) ArtworkQueue(ctx context.Context) model.ArtworkQueueRep
 	}
 	db.MockedArtworkQueue = q
 	return db.MockedArtworkQueue
+}
+
+func (db *MockDataStore) Download(ctx context.Context) model.DownloadRepository {
+	db.repoMu.Lock()
+	defer db.repoMu.Unlock()
+	if db.MockedDownload != nil {
+		return db.MockedDownload
+	}
+	if db.RealDS != nil {
+		return db.RealDS.Download(ctx)
+	}
+	db.MockedDownload = CreateMockDownloadRepo()
+	return db.MockedDownload
 }
 
 func (db *MockDataStore) WithTx(block func(tx model.DataStore) error, label ...string) error {

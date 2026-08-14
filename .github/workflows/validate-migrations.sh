@@ -96,7 +96,7 @@ while IFS= read -r f; do
   esac
   if [ "${f%/*}" != "$MIGRATIONS_DIR" ]; then
     report "$f" "❌ Migration file in a subdirectory: $f
-   Migrations must live directly in $MIGRATIONS_DIR/ — only $MIGRATIONS_DIR/*.sql (and
+   Migrations must live directly in $MIGRATIONS_DIR/ - only $MIGRATIONS_DIR/*.sql (and
    top-level .go migrations) are embedded, so a nested file would be SILENTLY SKIPPED.
    Move it to $MIGRATIONS_DIR/$b."
     continue
@@ -137,7 +137,7 @@ if [ -n "$dups" ]; then
     while IFS= read -r cf; do
       [ -z "$cf" ] && continue
       printf '   %s\n' "$cf" >&2
-      annotate "$cf" "Duplicate migration timestamp $ts — shared by another migration. Timestamps must be unique; regenerate one with make migration-*."
+      annotate "$cf" "Duplicate migration timestamp $ts - shared by another migration. Timestamps must be unique; regenerate one with make migration-*."
     done <<< "$colliding"
     printf '   Every migration needs a unique timestamp. Regenerate one with make migration-*.\n' >&2
     status=1

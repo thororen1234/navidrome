@@ -89,7 +89,7 @@ var _ = Describe("ParseLyrics", func() {
 		})
 
 		// A specific suffix means the user declared the format, so a structural
-		// failure is worth surfacing loudly — and it must name the file.
+		// failure is worth surfacing loudly - and it must name the file.
 		It("warns and names the file when a requested suffix fails to parse", func() {
 			ctx := log.NewContext(GinkgoT().Context(), "file", "/music/song.yaml")
 			list, err := ParseLyrics(ctx, ".yaml", "eng", []byte("not: [valid, yaml\n"))

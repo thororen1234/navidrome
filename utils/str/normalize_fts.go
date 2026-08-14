@@ -15,7 +15,7 @@ var FTSPunctStrip = regexp.MustCompile(`[^\p{L}\p{N}]`)
 // NormalizeForFTS takes multiple strings and returns a space-separated, deduplicated list of
 // alternative searchable forms for each word: punctuation-stripped (R.E.M. → REM, AC/DC → ACDC)
 // and ASCII-transliterated (Bjørk → Bjork, œuvre → oeuvre). The transliterated form is needed
-// because FTS5's `unicode61 remove_diacritics 2` only handles NFKD-decomposable diacritics —
+// because FTS5's `unicode61 remove_diacritics 2` only handles NFKD-decomposable diacritics -
 // atomic letters like ø/æ/œ/ß survive tokenization, so the query side and index side disagree
 // without an explicit transliterated entry here.
 func NormalizeForFTS(values ...string) string {

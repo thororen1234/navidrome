@@ -32,7 +32,7 @@ func streamItemsEnvelope(w io.Writer, items iter.Seq2[dto.BaseItemDto, error], t
 	return bw.Flush()
 }
 
-// streamItemsArray writes a bare JSON array — the shape /Items/Latest returns, with no envelope.
+// streamItemsArray writes a bare JSON array - the shape /Items/Latest returns, with no envelope.
 func streamItemsArray(w io.Writer, items iter.Seq2[dto.BaseItemDto, error]) error {
 	bw := bufio.NewWriterSize(w, 64*1024)
 	_, _ = bw.WriteString("[")
@@ -46,7 +46,7 @@ func streamItemsArray(w io.Writer, items iter.Seq2[dto.BaseItemDto, error]) erro
 
 // encodeItems writes items comma-separated. Unlike the fixed envelope writes, these are checked:
 // bufio surfaces a latched write error here once a flush fails, and a client that has gone away must
-// abandon the scan rather than pull the rest of the library through the cursor — which would hold its
+// abandon the scan rather than pull the rest of the library through the cursor - which would hold its
 // pooled DB connection and stream slot for a response nobody is reading.
 func encodeItems(bw *bufio.Writer, items iter.Seq2[dto.BaseItemDto, error]) error {
 	// One reused buffer+encoder, so per-item JSON doesn't allocate. Encode HTML-escapes like

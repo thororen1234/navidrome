@@ -539,7 +539,7 @@ var _ = Describe("lastfmAgent", func() {
 				URL:         "https://www.last.fm/music/Cher/Believe",
 			}))
 			Expect(httpClient.RequestCount).To(Equal(1))
-			// MBID is deliberately not sent — album.getInfo matches on name+artist only.
+			// MBID is deliberately not sent - album.getInfo matches on name+artist only.
 			Expect(httpClient.SavedRequest.URL.Query().Get("mbid")).To(BeEmpty())
 			Expect(httpClient.SavedRequest.URL.Query().Get("album")).To(Equal("Believe"))
 			Expect(httpClient.SavedRequest.URL.Query().Get("artist")).To(Equal("Cher"))

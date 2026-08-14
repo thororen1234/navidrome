@@ -22,6 +22,8 @@ import radio from './radio'
 import share from './share'
 import library from './library'
 import plugin from './plugin'
+import downloader from './downloader'
+import tidal from './tidal'
 import { Player } from './audioplayer'
 import customRoutes from './routes'
 import {
@@ -39,6 +41,7 @@ import {
   downloadMenuDialogReducer,
   shareDialogReducer,
   transcodingReducer,
+  downloaderReducer,
 } from './reducers'
 import createAdminStore from './store/createAdminStore'
 import { i18nProvider, retrieveTranslation } from './i18n'
@@ -80,6 +83,7 @@ const adminStore = createAdminStore({
     settings: settingsReducer,
     replayGain: replayGainReducer,
     transcoding: transcodingReducer,
+    downloader: downloaderReducer,
   },
 })
 
@@ -173,6 +177,10 @@ const Admin = (props) => {
             options={{ subMenu: 'settings' }}
           />
         ) : null,
+        permissions === 'admin' && config.downloaderEnabled ? (
+          <Resource name="downloader" {...downloader} />
+        ) : null,
+        config.tidalEnabled ? <Resource name="tidal" {...tidal} /> : null,
 
         <Resource name="translation" />,
         <Resource name="genre" />,

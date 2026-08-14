@@ -11,12 +11,15 @@ import (
 	"github.com/navidrome/navidrome/core"
 	"github.com/navidrome/navidrome/core/agents"
 	"github.com/navidrome/navidrome/core/artwork"
+	"github.com/navidrome/navidrome/core/downloader"
+	"github.com/navidrome/navidrome/core/downloader/toolmgr"
 	"github.com/navidrome/navidrome/core/lyrics"
 	"github.com/navidrome/navidrome/core/metrics"
 	"github.com/navidrome/navidrome/core/playback"
 	"github.com/navidrome/navidrome/core/playlists"
 	"github.com/navidrome/navidrome/core/scrobbler"
 	"github.com/navidrome/navidrome/core/sonic"
+	"github.com/navidrome/navidrome/core/tidal"
 	"github.com/navidrome/navidrome/db"
 	"github.com/navidrome/navidrome/model"
 	"github.com/navidrome/navidrome/persistence"
@@ -33,6 +36,10 @@ import (
 var allProviders = wire.NewSet(
 	core.Set,
 	artwork.Set,
+	downloader.Set,
+	toolmgr.New,
+	tidal.Set,
+	wire.Bind(new(downloader.TidalDownloader), new(tidal.Client)),
 	server.New,
 	subsonic.New,
 	jellyfin.New,
@@ -139,6 +146,18 @@ func GetPlaybackServer() playback.PlaybackServer {
 }
 
 func CreateArtworkWorker() *artwork.Worker {
+	panic(wire.Build(
+		allProviders,
+	))
+}
+
+func CreateDownloadWorker(ctx context.Context) *downloader.Worker {
+	panic(wire.Build(
+		allProviders,
+	))
+}
+
+func CreateDownloaderService() downloader.Service {
 	panic(wire.Build(
 		allProviders,
 	))

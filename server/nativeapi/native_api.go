@@ -14,12 +14,16 @@ import (
 	"github.com/navidrome/navidrome/conf"
 	"github.com/navidrome/navidrome/core"
 	"github.com/navidrome/navidrome/core/artwork"
+	"github.com/navidrome/navidrome/core/downloader"
+	"github.com/navidrome/navidrome/core/downloader/toolmgr"
 	"github.com/navidrome/navidrome/core/metrics"
 	playlistsvc "github.com/navidrome/navidrome/core/playlists"
+	"github.com/navidrome/navidrome/core/tidal"
 	"github.com/navidrome/navidrome/log"
 	"github.com/navidrome/navidrome/model"
 	"github.com/navidrome/navidrome/model/request"
 	"github.com/navidrome/navidrome/server"
+	"github.com/navidrome/navidrome/server/events"
 )
 
 // PluginManager defines the interface for plugin management operations.
@@ -46,10 +50,14 @@ type Router struct {
 	maintenance   core.Maintenance
 	pluginManager PluginManager
 	imgUpload     artwork.Uploader
+	downloader    downloader.Service
+	toolMgr       toolmgr.Manager
+	broker        events.Broker
+	tidal         tidal.Client
 }
 
-func New(ds model.DataStore, share core.Share, playlists playlistsvc.Playlists, insights metrics.Insights, libraryService core.Library, userService core.User, maintenance core.Maintenance, pluginManager PluginManager, imgUpload artwork.Uploader) *Router {
-	r := &Router{ds: ds, share: share, playlists: playlists, insights: insights, libs: libraryService, users: userService, maintenance: maintenance, pluginManager: pluginManager, imgUpload: imgUpload}
+func New(ds model.DataStore, share core.Share, playlists playlistsvc.Playlists, insights metrics.Insights, libraryService core.Library, userService core.User, maintenance core.Maintenance, pluginManager PluginManager, imgUpload artwork.Uploader, downloaderSvc downloader.Service, toolMgr toolmgr.Manager, broker events.Broker, tidalClient tidal.Client) *Router {
+	r := &Router{ds: ds, share: share, playlists: playlists, insights: insights, libs: libraryService, users: userService, maintenance: maintenance, pluginManager: pluginManager, imgUpload: imgUpload, downloader: downloaderSvc, toolMgr: toolMgr, broker: broker, tidal: tidalClient}
 	r.Handler = r.routes()
 	return r
 }
@@ -86,6 +94,7 @@ func (api *Router) routes() http.Handler {
 		api.addMissingFilesRoute(r)
 		api.addKeepAliveRoute(r)
 		api.addInsightsRoute(r)
+		api.addTidalRoute(r)
 
 		r.With(adminOnlyMiddleware).Group(func(r chi.Router) {
 			api.addInspectRoute(r)
@@ -93,6 +102,7 @@ func (api *Router) routes() http.Handler {
 			api.addUserLibraryRoute(r)
 			api.addPluginRoute(r)
 			api.addArtworkRoute(r)
+			api.addDownloaderRoute(r)
 			api.RX(r, "/library", api.libs.NewRepository, true)
 		})
 	})

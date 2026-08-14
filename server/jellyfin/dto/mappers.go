@@ -288,7 +288,7 @@ func AlbumToBaseItem(al model.Album, fields Fields) BaseItemDto {
 			item.Studios = append(item.Studios, NameGuidPair{Name: label, Id: id})
 		}
 	}
-	// The album's own ReplayGain gain (dB at the RG2 -18 LUFS reference) — same
+	// The album's own ReplayGain gain (dB at the RG2 -18 LUFS reference) - same
 	// convention as tracks; clients read it off the album item as NormalizationGain.
 	item.NormalizationGain = al.RGAlbumGain
 	if fields.Has("SortName") {

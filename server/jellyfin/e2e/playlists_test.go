@@ -326,7 +326,7 @@ var _ = Describe("Playlists", func() {
 			Expect(postAs(regularUser, "/Playlists/"+enc(plID), `{"Name":"Hijacked"}`).Code).To(Equal(http.StatusForbidden))
 		})
 
-		// An id that decodes to "" would tell Create to make a new playlist instead of updating one —
+		// An id that decodes to "" would tell Create to make a new playlist instead of updating one -
 		// itemIDParam must 404 before that decode ever runs, not silently create one.
 		It("404s for a malformed playlist id, without creating a playlist", func() {
 			before, err := ds.Playlist(ctx).CountAll()

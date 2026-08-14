@@ -132,7 +132,7 @@ func buildTestFS() storagetest.FakeFS {
 		"Jazz/Miles Davis/Kind of Blue/01 - So What.mp3":    kindOfBlue(track(1, "So What")),
 		"Pop/Solo Artist/Singles/01 - Standalone Track.mp3": singles(track(1, "Standalone Track")),
 		// "Featured Guest" is the track artist here (album artist stays "Solo Artist"), so it's a
-		// performer but not an album artist — lets tests tell /Artists from /Artists/AlbumArtists.
+		// performer but not an album artist - lets tests tell /Artists from /Artists/AlbumArtists.
 		"Pop/Solo Artist/Singles/02 - Duet.mp3": singles(track(2, "Duet", _t{"artist": "Featured Guest"})),
 	})
 }
@@ -343,7 +343,7 @@ func setupTestDB() {
 
 // fakeExternalProvider is a configurable stand-in for external.Provider. Tests set the return
 // values they need; unset fields yield empty similar lists. Only the methods the Jellyfin API uses
-// are overridden — the embedded interface panics for anything else, flagging unexpected calls.
+// are overridden - the embedded interface panics for anything else, flagging unexpected calls.
 type fakeExternalProvider struct {
 	external.Provider
 	similarArtists model.Artists

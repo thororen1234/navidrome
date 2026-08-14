@@ -293,7 +293,7 @@ var _ = Describe("Transcode Endpoints", Ordered, func() {
 			})
 
 			It("denies direct play when codec mismatches", func() {
-				// MKA container with opus codec — client only supports mp3
+				// MKA container with opus codec - client only supports mp3
 				resp := doPostReq("getTranscodeDecision", mp3OnlyClient, "mediaId", mkaOpusTrackID, "mediaType", "song")
 				Expect(resp.Status).To(Equal(responses.StatusOK))
 				Expect(resp.TranscodeDecision).ToNot(BeNil())
@@ -351,7 +351,7 @@ var _ = Describe("Transcode Endpoints", Ordered, func() {
 				resp := doPostReq("getTranscodeDecision", flacOnlyClient, "mediaId", mp3TrackID, "mediaType", "song")
 				Expect(resp.Status).To(Equal(responses.StatusOK))
 				Expect(resp.TranscodeDecision).ToNot(BeNil())
-				// MP3 is lossy, FLAC is lossless — should not allow transcoding
+				// MP3 is lossy, FLAC is lossless - should not allow transcoding
 				Expect(resp.TranscodeDecision.CanTranscode).To(BeFalse())
 				Expect(resp.TranscodeDecision.CanDirectPlay).To(BeFalse())
 				Expect(resp.TranscodeDecision.TranscodeParams).To(BeEmpty())

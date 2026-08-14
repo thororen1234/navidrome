@@ -396,7 +396,7 @@ var _ = Describe("KVStoreService", func() {
 			`)
 			Expect(err).ToNot(HaveOccurred())
 
-			// Overwrite with Set (no TTL) — should become permanent
+			// Overwrite with Set (no TTL) - should become permanent
 			err = service.Set(ctx, "ttl_then_set", []byte("permanent"))
 			Expect(err).ToNot(HaveOccurred())
 
@@ -527,7 +527,7 @@ var _ = Describe("KVStoreService", func() {
 			`)
 			Expect(err).ToNot(HaveOccurred())
 
-			// Overwrite with a long TTL — should be retrievable
+			// Overwrite with a long TTL - should be retrievable
 			err = service.SetWithTTL(ctx, "overwrite_ttl", []byte("second"), 3600)
 			Expect(err).ToNot(HaveOccurred())
 

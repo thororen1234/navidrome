@@ -374,7 +374,7 @@ var _ = Describe("REST Adapter", func() {
 						Rules:   rules,
 					}
 					repo = ps.NewRepository(ctx).(rest.Persistable)
-					// Same rules sent back — rulesEqual should report no change and
+					// Same rules sent back - rulesEqual should report no change and
 					// the request should no-op (no Put call).
 					sameRules := &criteria.Criteria{Expression: criteria.Is{"genre": "Rock"}}
 					err := repo.Update("smart-idempotent", &model.Playlist{Rules: sameRules}, "rules")

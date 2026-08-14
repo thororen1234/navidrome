@@ -376,7 +376,7 @@ type errFakeReader struct{ err error }
 
 func (e errFakeReader) Read([]byte) (int, error) { return 0, e.err }
 
-// partialThenErrReader emits data once, then fails — mimicking a transcoder
+// partialThenErrReader emits data once, then fails - mimicking a transcoder
 // that produces some output and then dies mid-stream.
 type partialThenErrReader struct {
 	data []byte

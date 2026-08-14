@@ -85,8 +85,8 @@ func (api *Router) resolveArtworkID(ctx context.Context, itemId string) string {
 }
 
 // postItemImage handles cover upload. Only playlists are writable here; album/artist covers come
-// from scanning. Past the auth and id gates the body is drained before answering — including on the
-// not-implemented path — because Finamp writes it synchronously and would see a broken pipe.
+// from scanning. Past the auth and id gates the body is drained before answering - including on the
+// not-implemented path - because Finamp writes it synchronously and would see a broken pipe.
 func (api *Router) postItemImage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id, ok := itemIDParam(w, r, "itemId")
@@ -128,7 +128,7 @@ func (api *Router) postItemImage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "file too large", http.StatusBadRequest)
 		return
 	}
-	// Validate by decoding and derive the extension from the real format — clients lie in Content-Type.
+	// Validate by decoding and derive the extension from the real format - clients lie in Content-Type.
 	_, format, err := image.DecodeConfig(bytes.NewReader(imgBytes))
 	if err != nil {
 		log.Warn(ctx, "Jellyfin API: cover upload rejected: not a valid image", "playlistId", id, err)

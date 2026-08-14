@@ -1180,7 +1180,7 @@ var _ = Describe("Decider", func() {
 		It("skips ffprobe when ProbeData is already set", func() {
 			mf := withProbe(&model.MediaFile{ID: "probe-2", Suffix: "flac", Codec: "FLAC", BitRate: 1000, Channels: 2})
 
-			// Set error on mock — if ffprobe were called, this would fail
+			// Set error on mock - if ffprobe were called, this would fail
 			ff.Error = fmt.Errorf("should not be called")
 
 			svc := NewTranscodeDecider(ds, ff).(*deciderService)
@@ -1205,7 +1205,7 @@ var _ = Describe("Decider", func() {
 			conf.Server.DevEnableMediaFileProbe = false
 
 			mf := &model.MediaFile{ID: "probe-4", Suffix: "mp3"}
-			// Set a result — if ffprobe were called, ProbeData would be populated
+			// Set a result - if ffprobe were called, ProbeData would be populated
 			ff.ProbeAudioResult = &ffmpeg.AudioProbeResult{Codec: "mp3"}
 
 			svc := NewTranscodeDecider(ds, ff).(*deciderService)

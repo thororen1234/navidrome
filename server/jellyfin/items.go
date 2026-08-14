@@ -65,7 +65,7 @@ func streamed(open func() (iter.Seq2[dto.BaseItemDto, error], error), total, sta
 	return itemsResult{openCursor: open, total: total, start: start}
 }
 
-// chained streams several results back to back, skipping the first skip items — the unbounded
+// chained streams several results back to back, skipping the first skip items - the unbounded
 // multi-type merge, where paginate(items, offset, 0) is just the concatenation minus its head.
 func chained(results []itemsResult, total, skip int) itemsResult {
 	open := func() (iter.Seq2[dto.BaseItemDto, error], error) {
@@ -242,7 +242,7 @@ func (api *Router) parseItemsQuery(ctx context.Context, r *http.Request) (itemsQ
 		return itemsQuery{}, model.ErrNotFound
 	}
 	// Any malformed entry in one of these id lists must 404, not silently drop out of the filter
-	// (see dto.DecodeIDs) — an all-malformed list would otherwise widen the query to everything.
+	// (see dto.DecodeIDs) - an all-malformed list would otherwise widen the query to everything.
 	ids, ok := decodedQueryIDs(r, "ids")
 	if !ok {
 		return itemsQuery{}, model.ErrNotFound
@@ -377,7 +377,7 @@ func (api *Router) mergeTypes(ctx context.Context, q itemsQuery) (itemsResult, e
 	return api.mergeTypesPaged(ctx, q, offset)
 }
 
-// randomlySorted reports whether every merged type resolves to a random sort — the case where a page
+// randomlySorted reports whether every merged type resolves to a random sort - the case where a page
 // is an independent draw, so the offset can be collapsed to 0. Resolving via applySort (rather than
 // matching the raw SortBy) keeps this in step with how each type's sort is actually chosen.
 func randomlySorted(q itemsQuery) bool {
@@ -698,7 +698,7 @@ func (api *Router) listSongs(ctx context.Context, opts model.QueryOptions, q ite
 
 // listArtists lists artists in the given role: RoleAlbumArtist for the "album artists" views,
 // RoleArtist for performing artists (/Artists). Without the role filter both lists would be identical.
-// genreIds isn't applied to search — a name lookup, like role (see below).
+// genreIds isn't applied to search - a name lookup, like role (see below).
 func (api *Router) listArtists(ctx context.Context, opts model.QueryOptions, q itemsQuery, role model.Role) (itemsResult, error) {
 	repo := api.ds.Artist(ctx)
 	toItem := func(ar model.Artist) dto.BaseItemDto { return dto.ArtistToBaseItem(ar, q.fields) }
@@ -706,7 +706,7 @@ func (api *Router) listArtists(ctx context.Context, opts model.QueryOptions, q i
 	// Artist Search does its own library scoping: it consumes a sole Eq{"library_id": ...} filter as a
 	// search scope (artists have no library_id column). A compound or join-based filter
 	// (ApplyArtistLibraryFilter) would leak into the FTS query and 500, so search and browse build
-	// filters differently. Role isn't applied to search for the same reason — it's a name lookup.
+	// filters differently. Role isn't applied to search for the same reason - it's a name lookup.
 	if q.search != "" {
 		if len(q.scopeIDs) > 0 {
 			opts.Filters = squirrel.Eq{"library_id": q.scopeIDs}
@@ -739,7 +739,7 @@ func (api *Router) listArtists(ctx context.Context, opts model.QueryOptions, q i
 
 // listGenres is intentionally unscoped: genres are global tags, not per-library entities. It's also
 // the one listXxx that stays materialized: GenreRepository has no CountAll, so the total is the
-// length of the full list and paging is in-memory — nothing for a cursor to page over.
+// length of the full list and paging is in-memory - nothing for a cursor to page over.
 func (api *Router) listGenres(ctx context.Context, opts model.QueryOptions) (itemsResult, error) {
 	genres, err := api.ds.Genre(ctx).GetAll(model.QueryOptions{Sort: opts.Sort, Order: opts.Order})
 	if err != nil {
@@ -885,7 +885,7 @@ func (api *Router) deleteItem(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// getLatest returns a bare array, not a QueryResult envelope — real Jellyfin's shape for
+// getLatest returns a bare array, not a QueryResult envelope - real Jellyfin's shape for
 // /Items/Latest, and why it writes directly instead of going through api.ok.
 func (api *Router) getLatest(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
