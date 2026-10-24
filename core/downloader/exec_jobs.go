@@ -2,7 +2,6 @@ package downloader
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -56,8 +55,10 @@ func buildArgs(tool model.DownloadTool, bin, sourceURL, outDir string) []string 
 	switch tool {
 	case model.DownloadToolYtDlp:
 		outTemplate := filepath.Join(outDir, "%(title)s.%(ext)s")
+		// --embed-metadata writes title/artist/album tags, without which the scanner files
+		// everything under "Unknown Artist"; --no-mtime keeps the files' mtime at download time.
 		return []string{bin, "-x", "--audio-format", "mp3", "--audio-quality", "0",
-			"--newline", "-o", outTemplate, sourceURL}
+			"--embed-metadata", "--no-mtime", "--newline", "-o", outTemplate, sourceURL}
 	case model.DownloadToolScdl:
 		return []string{bin, "-l", sourceURL, "--path", outDir, "--onlymp3"}
 	case model.DownloadToolSpotdl:
@@ -94,7 +95,7 @@ func runExecJob(ctx context.Context, d *model.Download, outDir string, onProgres
 	if err != nil {
 		return fmt.Errorf("starting %s: %w", d.Tool, err)
 	}
-	stderrBuf := &limitedBuffer{limit: 4096}
+	stderrBuf := &tailBuffer{limit: 4096}
 	cmd.Stderr = stderrBuf
 
 	if err := cmd.Start(); err != nil {
@@ -127,26 +128,27 @@ func runExecJob(ctx context.Context, d *model.Download, outDir string, onProgres
 	return nil
 }
 
-// limitedBuffer caps how much stderr it retains, so a chatty subprocess can't grow this
-// unbounded while the job runs.
-type limitedBuffer struct {
-	buf   bytes.Buffer
+// tailBuffer keeps only the last limit bytes written to it, so a chatty subprocess can't grow
+// it unbounded while the job runs - and the error these tools print last (e.g. yt-dlp's
+// "ERROR: ..." after a page of warnings) is the part that survives.
+type tailBuffer struct {
+	buf   []byte
 	limit int
 }
 
-func (w *limitedBuffer) Write(p []byte) (int, error) {
+func (w *tailBuffer) Write(p []byte) (int, error) {
 	n := len(p)
-	remaining := w.limit - w.buf.Len()
-	if remaining <= 0 {
+	if len(p) >= w.limit {
+		w.buf = append(w.buf[:0], p[len(p)-w.limit:]...)
 		return n, nil
 	}
-	if len(p) > remaining {
-		p = p[:remaining]
+	if over := len(w.buf) + len(p) - w.limit; over > 0 {
+		w.buf = w.buf[over:]
 	}
-	w.buf.Write(p)
+	w.buf = append(w.buf, p...)
 	return n, nil
 }
 
-func (w *limitedBuffer) String() string { return w.buf.String() }
+func (w *tailBuffer) String() string { return string(w.buf) }
 
-var _ io.Writer = (*limitedBuffer)(nil)
+var _ io.Writer = (*tailBuffer)(nil)

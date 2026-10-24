@@ -16,13 +16,20 @@ import (
 	"github.com/navidrome/navidrome/server/events"
 )
 
-const workerPollInterval = 5 * time.Second
+const (
+	// workerPollInterval is only a fallback: Submit/Retry wake the worker directly.
+	workerPollInterval = 30 * time.Second
+	// progressMinInterval/progressMinDelta throttle progress writes: yt-dlp alone prints several
+	// lines a second, and each one would otherwise cost a DB write and an SSE broadcast.
+	progressMinInterval = time.Second
+	progressMinDelta    = 0.01
+)
 
-// Worker drains the download queue: one job at a time per concurrency slot, dispatched to
+// Worker drains the download queue, running up to concurrency jobs at once, dispatched to
 // either an external CLI tool (exec_jobs.go) or the Tidal client (tidal_job.go). There is no
 // auto-retry - these are large one-shot jobs, not idempotent cheap lookups, so a failure just
-// leaves the job in DownloadStatusError for the user to resubmit. reg lets Service.Cancel stop a
-// job that's already running (see registry.go).
+// leaves the job in DownloadStatusError for the user to retry. reg lets Service.Cancel stop a
+// job that's already running and wakes the worker on new submissions (see registry.go).
 type Worker struct {
 	ds          model.DataStore
 	scanner     model.Scanner
@@ -43,63 +50,53 @@ func NewWorker(ds model.DataStore, scanner model.Scanner, broker events.Broker, 
 	}
 }
 
-// Run blocks draining the queue until ctx is cancelled.
+// Run blocks draining the queue until ctx is cancelled. Each free slot claims the next queued
+// job as soon as it frees up, so one long download never holds back the rest of the queue.
 func (w *Worker) Run(ctx context.Context) error {
 	ctx = auth.WithAdminUser(ctx, w.ds)
+	// Nothing can still be running at startup: anything left "downloading" was cut off by a crash
+	// or restart, and would otherwise sit there forever, uncancelable and never retried.
+	if n, err := w.ds.Download(ctx).FailInterrupted("interrupted by a server restart"); err != nil {
+		log.Warn(ctx, "Downloader: could not reset interrupted jobs", err)
+	} else if n > 0 {
+		log.Warn(ctx, "Downloader: marked jobs interrupted by a restart as failed", "count", n)
+	}
+
 	ticker := time.NewTicker(workerPollInterval)
 	defer ticker.Stop()
-	for {
-		n, err := w.drain(ctx)
-		if err != nil && ctx.Err() == nil {
-			log.Warn(ctx, "Downloader: worker drain failed", err)
-		}
-		if ctx.Err() != nil {
-			return nil
-		}
-		if n > 0 {
-			continue
-		}
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-ticker.C:
-		}
-	}
-}
-
-func (w *Worker) drain(ctx context.Context) (int, error) {
-	items, err := w.ds.Download(ctx).DequeueBatch(max(4, 2*w.concurrency))
-	if err != nil {
-		return 0, err
-	}
-	if len(items) == 0 {
-		return 0, nil
-	}
 	sem := make(chan struct{}, w.concurrency)
 	var wg sync.WaitGroup
-	for _, item := range items {
+	defer wg.Wait()
+	for {
 		select {
 		case sem <- struct{}{}:
 		case <-ctx.Done():
+			return nil
 		}
-		if ctx.Err() != nil {
-			wg.Wait()
-			return len(items), nil //nolint:nilerr // a cancelled drain is a clean stop, not an error
+		item, err := w.ds.Download(ctx).ClaimNext()
+		if err != nil {
+			<-sem
+			if !errors.Is(err, model.ErrNotFound) && ctx.Err() == nil {
+				log.Warn(ctx, "Downloader: could not claim next job", err)
+			}
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-w.reg.wake:
+			case <-ticker.C:
+			}
+			continue
 		}
 		wg.Go(func() {
 			defer func() { <-sem }()
-			w.process(ctx, item)
+			w.process(ctx, *item)
 		})
 	}
-	wg.Wait()
-	return len(items), nil
 }
 
+// process runs one job the worker has already claimed (ClaimNext moved it to downloading).
 func (w *Worker) process(ctx context.Context, item model.Download) {
 	log.Info(ctx, "Downloader: starting job", "id", item.ID, "tool", item.Tool, "libraryId", item.LibraryID)
-	if err := w.ds.Download(ctx).MarkStarted(item.ID); err != nil {
-		log.Warn(ctx, "Downloader: could not mark job started", "id", item.ID, err)
-	}
 	w.broadcast(ctx, item.ID, model.DownloadStatusDownloading, 0, "", "")
 
 	// jobCtx (not ctx) is what actually runs the download, so a cancellation request or timeout
@@ -124,12 +121,7 @@ func (w *Worker) process(ctx context.Context, item model.Download) {
 		return
 	}
 
-	onProgress := func(pct float64, msg string) {
-		if e := w.ds.Download(ctx).UpdateProgress(item.ID, pct, msg); e != nil {
-			log.Warn(ctx, "Downloader: could not update job progress", "id", item.ID, e)
-		}
-		w.broadcast(ctx, item.ID, model.DownloadStatusDownloading, pct, msg, "")
-	}
+	onProgress := w.progressReporter(ctx, item.ID)
 
 	var moved int
 	var lastPath string
@@ -161,15 +153,38 @@ func (w *Worker) process(ctx context.Context, item model.Download) {
 		return
 	}
 
+	// A multi-file job (an album, a playlist) is represented by the folder it landed in.
 	result := lastPath
 	if moved > 1 {
-		result = targetDir
+		result = filepath.Dir(lastPath)
 	}
 	if err := w.ds.Download(ctx).MarkCompleted(item.ID, result); err != nil {
 		log.Warn(ctx, "Downloader: could not mark job completed", "id", item.ID, err)
 	}
+	log.Info(ctx, "Downloader: job completed", "id", item.ID, "files", moved, "path", result)
 	w.broadcast(ctx, item.ID, model.DownloadStatusCompleted, 1, "", "")
-	w.triggerRescan(ctx, item.LibraryID, targetDir)
+	w.triggerRescan(ctx, item.LibraryID, filepath.Dir(lastPath))
+}
+
+// progressReporter returns the onProgress callback for one job, persisting and broadcasting
+// only meaningful changes (see progressMinInterval/progressMinDelta).
+func (w *Worker) progressReporter(ctx context.Context, id string) func(pct float64, msg string) {
+	var mu sync.Mutex
+	lastPct := -1.0
+	var lastAt time.Time
+	return func(pct float64, msg string) {
+		mu.Lock()
+		if pct-lastPct < progressMinDelta && time.Since(lastAt) < progressMinInterval {
+			mu.Unlock()
+			return
+		}
+		lastPct, lastAt = pct, time.Now()
+		mu.Unlock()
+		if e := w.ds.Download(ctx).UpdateProgress(id, pct, msg); e != nil {
+			log.Warn(ctx, "Downloader: could not update job progress", "id", id, e)
+		}
+		w.broadcast(ctx, id, model.DownloadStatusDownloading, pct, msg, "")
+	}
 }
 
 func (w *Worker) fail(ctx context.Context, id string, err error) {

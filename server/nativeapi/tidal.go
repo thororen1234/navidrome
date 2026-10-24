@@ -5,10 +5,12 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/navidrome/navidrome/conf"
 	"github.com/navidrome/navidrome/core/downloader"
+	"github.com/navidrome/navidrome/core/tidal"
 	"github.com/navidrome/navidrome/log"
 	"github.com/navidrome/navidrome/model"
 	"github.com/navidrome/navidrome/model/request"
@@ -79,37 +81,53 @@ func (api *Router) tidalAlbum(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, album)
 }
 
-// tidalStream proxies TidalSubsonic's stream response through Navidrome, forwarding Range so
-// in-browser seeking works. Navidrome is the only thing that needs network access to
-// TidalSubsonic - the browser never talks to it directly.
+// tidalStream serves a Tidal track from Navidrome's local stream cache (see tidal.streamCache):
+// the first request downloads the whole track from TidalSubsonic, so the browser gets a regular
+// file with a real duration, Content-Length and Range support instead of TidalSubsonic's
+// unseekable fragmented stream. The browser never talks to TidalSubsonic directly.
 func (api *Router) tidalStream(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
-	body, header, status, err := api.tidal.Stream(ctx, id, r.Header.Get("Range"))
+	track, err := api.tidal.OpenStream(ctx, id)
 	if err != nil {
+		if ctx.Err() != nil {
+			return // client went away while the track was downloading
+		}
 		log.Error(ctx, "Error streaming from Tidal", "id", id, err)
 		http.Error(w, "error streaming from tidal", http.StatusBadGateway)
 		return
 	}
-	defer body.Close()
-	for _, h := range []string{"Content-Type", "Content-Length", "Content-Range", "Accept-Ranges"} {
-		if v := header.Get(h); v != "" {
-			w.Header().Set(h, v)
-		}
+	f, err := os.Open(track.Path)
+	if err != nil {
+		log.Error(ctx, "Error opening cached Tidal stream", "id", id, "path", track.Path, err)
+		http.Error(w, "error streaming from tidal", http.StatusInternalServerError)
+		return
 	}
-	w.WriteHeader(status)
-	_, _ = io.Copy(w, body)
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		http.Error(w, "error streaming from tidal", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", track.ContentType)
+	w.Header().Set("Cache-Control", "private, max-age=86400")
+	http.ServeContent(w, r, "", info.ModTime(), f)
 }
 
 // tidalCoverArt proxies TidalSubsonic's getCoverArt response through Navidrome, same rationale
-// as tidalStream: the browser never needs direct network access to TidalSubsonic.
+// as tidalStream: the browser never needs direct network access to TidalSubsonic. A missing
+// image is a plain 404 (the UI falls back to a placeholder icon), not a logged error.
 func (api *Router) tidalCoverArt(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
 	size := r.URL.Query().Get("size")
 	body, header, status, err := api.tidal.CoverArt(ctx, id, size)
 	if err != nil {
-		log.Error(ctx, "Error fetching cover art from Tidal", "id", id, err)
+		if errors.Is(err, tidal.ErrNotFound) {
+			http.Error(w, "Not found", http.StatusNotFound)
+			return
+		}
+		log.Warn(ctx, "Error fetching cover art from Tidal", "id", id, err)
 		http.Error(w, "error fetching tidal cover art", http.StatusBadGateway)
 		return
 	}
@@ -119,6 +137,7 @@ func (api *Router) tidalCoverArt(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set(h, v)
 		}
 	}
+	w.Header().Set("Cache-Control", "private, max-age=86400")
 	w.WriteHeader(status)
 	_, _ = io.Copy(w, body)
 }

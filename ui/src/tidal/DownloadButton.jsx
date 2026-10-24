@@ -1,21 +1,31 @@
 import { useState } from 'react'
 import { useNotify, usePermissions, useTranslate } from 'react-admin'
-import { IconButton, Menu, MenuItem, Tooltip, CircularProgress } from '@material-ui/core'
+import {
+  IconButton,
+  Menu,
+  MenuItem,
+  Tooltip,
+  CircularProgress,
+} from '@material-ui/core'
 import CloudDownloadIcon from '@material-ui/icons/CloudDownload'
 import { httpClient } from '../dataProvider'
+import { errorMessage } from '../downloader/errorMessage'
+import config from '../config'
 import { useLibraries } from '../downloader/useLibraries'
 
 // DownloadButton enqueues a "download to server" job for a Tidal track/album into the same
-// queue the Downloader tab shows. Only rendered for admins, since it writes to the filesystem.
+// queue the Downloader tab shows. Only rendered for admins, since it writes to the filesystem,
+// and only when the server accepts these jobs (Tidal.AllowDownload with the Downloader enabled).
 const DownloadButton = ({ tidalId, tidalKind }) => {
   const { permissions } = usePermissions()
   const translate = useTranslate()
   const notify = useNotify()
-  const libraries = useLibraries()
+  const allowed = permissions === 'admin' && config.tidalAllowDownload
+  const libraries = useLibraries(allowed)
   const [anchorEl, setAnchorEl] = useState(null)
   const [submitting, setSubmitting] = useState(false)
 
-  if (permissions !== 'admin') {
+  if (!allowed) {
     return null
   }
 
@@ -33,9 +43,7 @@ const DownloadButton = ({ tidalId, tidalKind }) => {
       })
       .catch((error) => {
         notify(
-          error.body?.error ||
-            error.message ||
-            'resources.downloader.messages.submitError',
+          errorMessage(error, 'resources.downloader.messages.submitError'),
           { type: 'warning' },
         )
       })
@@ -43,6 +51,7 @@ const DownloadButton = ({ tidalId, tidalKind }) => {
   }
 
   const handleClick = (e) => {
+    e.stopPropagation() // rows are clickable (open album/artist)
     if (libraries.length <= 1) {
       submit(libraries[0]?.id)
       return
@@ -56,12 +65,12 @@ const DownloadButton = ({ tidalId, tidalKind }) => {
 
   return (
     <>
-      <Tooltip
-        title={translate('resources.downloader.actions.submit', {
-          _: 'Download to server',
-        })}
-      >
-        <IconButton size="small" onClick={handleClick} disabled={!libraries.length}>
+      <Tooltip title={translate('resources.tidal.actions.downloadToServer')}>
+        <IconButton
+          size="small"
+          onClick={handleClick}
+          disabled={!libraries.length}
+        >
           <CloudDownloadIcon fontSize="small" />
         </IconButton>
       </Tooltip>
@@ -69,6 +78,7 @@ const DownloadButton = ({ tidalId, tidalKind }) => {
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={() => setAnchorEl(null)}
+        onClick={(e) => e.stopPropagation()}
       >
         {libraries.map((lib) => (
           <MenuItem key={lib.id} onClick={() => submit(lib.id)}>

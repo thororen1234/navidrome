@@ -14,6 +14,7 @@ import {
   PLAYER_REFRESH_QUEUE,
 } from '../actions'
 import config from '../config'
+import { tidalStreamUrl } from '../tidal/urls'
 
 const initialState = {
   queue: [],
@@ -49,8 +50,10 @@ const mapToAudioLists = (item) => {
       trackId,
       uuid: uuidv4(),
       name: item.name,
+      singer: item.artist,
+      duration: item.duration,
       song: item,
-      musicSrc: item.streamUrl,
+      musicSrc: item.tidalId ? tidalStreamUrl(item.tidalId) : item.streamUrl,
       cover: item.cover,
       isRadio: true,
     }
@@ -97,6 +100,11 @@ const mapToAudioLists = (item) => {
     ),
   }
 }
+
+// Tidal stream URLs embed the session token, so a queue restored from localStorage gets them
+// rebuilt with the current one; real radio stream URLs are kept as-is.
+const radioMusicSrc = (item) =>
+  item.song?.tidalId ? tidalStreamUrl(item.song.tidalId) : item.musicSrc
 
 const reduceClearQueue = () => ({ ...initialState, clear: true })
 
@@ -236,7 +244,7 @@ export const playerReducer = (previousState = initialState, payload) => {
         queue: previousState.queue.map((item) => ({
           ...item,
           musicSrc: item.isRadio
-            ? item.musicSrc
+            ? radioMusicSrc(item)
             : resolvedUrls[item.trackId] || subsonic.streamUrl(item.trackId),
         })),
         clear: true,

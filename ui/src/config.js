@@ -45,6 +45,7 @@ const defaultConfig = {
   pluginsEnabled: true,
   downloaderEnabled: false,
   tidalEnabled: false,
+  tidalAllowDownload: false,
 }
 
 let config

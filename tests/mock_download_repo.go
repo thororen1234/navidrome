@@ -63,23 +63,27 @@ func (m *MockDownloadRepo) GetAll(...model.QueryOptions) (model.Downloads, error
 	return res, nil
 }
 
-func (m *MockDownloadRepo) DequeueBatch(n int) (model.Downloads, error) {
+func (m *MockDownloadRepo) ClaimNext() (*model.Download, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.Err != nil {
 		return nil, m.Err
 	}
-	var res model.Downloads
+	var next *model.Download
 	for _, d := range m.Data {
-		if d.Status == model.DownloadStatusQueued {
-			res = append(res, d)
+		if d.Status == model.DownloadStatusQueued && (next == nil || d.CreatedAt.Before(next.CreatedAt)) {
+			next = &d
 		}
 	}
-	slices.SortFunc(res, func(a, b model.Download) int { return a.CreatedAt.Compare(b.CreatedAt) })
-	if len(res) > n {
-		res = res[:n]
+	if next == nil {
+		return nil, model.ErrNotFound
 	}
-	return res, nil
+	now := time.Now()
+	next.Status = model.DownloadStatusDownloading
+	next.StartedAt = &now
+	next.UpdatedAt = now
+	m.Data[next.ID] = *next
+	return next, nil
 }
 
 func (m *MockDownloadRepo) UpdateProgress(downloadID string, progress float64, statusMessage string) error {
@@ -93,22 +97,6 @@ func (m *MockDownloadRepo) UpdateProgress(downloadID string, progress float64, s
 		d.Progress = progress
 		d.StatusMessage = statusMessage
 		d.UpdatedAt = time.Now()
-		m.Data[downloadID] = d
-	}
-	return nil
-}
-
-func (m *MockDownloadRepo) MarkStarted(downloadID string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.Err != nil {
-		return m.Err
-	}
-	if d, ok := m.Data[downloadID]; ok {
-		now := time.Now()
-		d.Status = model.DownloadStatusDownloading
-		d.StartedAt = &now
-		d.UpdatedAt = now
 		m.Data[downloadID] = d
 	}
 	return nil
@@ -160,6 +148,81 @@ func (m *MockDownloadRepo) MarkCanceled(downloadID string) error {
 		m.Data[downloadID] = d
 	}
 	return nil
+}
+
+func (m *MockDownloadRepo) CancelQueued(downloadID string) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.Err != nil {
+		return false, m.Err
+	}
+	d, ok := m.Data[downloadID]
+	if !ok || d.Status != model.DownloadStatusQueued {
+		return false, nil
+	}
+	d.Status = model.DownloadStatusCanceled
+	d.UpdatedAt = time.Now()
+	m.Data[downloadID] = d
+	return true, nil
+}
+
+func (m *MockDownloadRepo) Requeue(downloadID string) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.Err != nil {
+		return false, m.Err
+	}
+	d, ok := m.Data[downloadID]
+	if !ok || (d.Status != model.DownloadStatusError && d.Status != model.DownloadStatusCanceled) {
+		return false, nil
+	}
+	now := time.Now()
+	d.Status = model.DownloadStatusQueued
+	d.Progress = 0
+	d.StatusMessage = ""
+	d.Error = ""
+	d.TargetPath = ""
+	d.StartedAt = nil
+	d.CompletedAt = nil
+	d.CreatedAt = now
+	d.UpdatedAt = now
+	m.Data[downloadID] = d
+	return true, nil
+}
+
+func (m *MockDownloadRepo) FailInterrupted(errMsg string) (int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.Err != nil {
+		return 0, m.Err
+	}
+	var n int64
+	for id, d := range m.Data {
+		if d.Status == model.DownloadStatusDownloading {
+			d.Status = model.DownloadStatusError
+			d.Error = errMsg
+			d.Attempts++
+			m.Data[id] = d
+			n++
+		}
+	}
+	return n, nil
+}
+
+func (m *MockDownloadRepo) DeleteFinished() (int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.Err != nil {
+		return 0, m.Err
+	}
+	var n int64
+	for id, d := range m.Data {
+		if slices.Contains(model.FinishedDownloadStatuses, d.Status) {
+			delete(m.Data, id)
+			n++
+		}
+	}
+	return n, nil
 }
 
 func (m *MockDownloadRepo) CountByStatus(status model.DownloadStatus) (int64, error) {

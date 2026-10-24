@@ -23,7 +23,9 @@ func (api *Router) addDownloaderRoute(r chi.Router) {
 		r.Use(downloaderEnabledMiddleware)
 		r.Get("/", api.listDownloads)
 		r.Post("/", api.submitDownload)
+		r.Delete("/", api.clearFinishedDownloads)
 		r.Delete("/{id}", api.cancelDownload)
+		r.Post("/{id}/retry", api.retryDownload)
 		r.Route("/tools", func(r chi.Router) {
 			r.Get("/", api.listTools)
 			r.Post("/{tool}/{action}", api.runToolAction)
@@ -103,6 +105,36 @@ func (api *Router) cancelDownload(w http.ResponseWriter, r *http.Request) {
 		log.Error(ctx, "Error canceling download", "id", id, err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}
+}
+
+func (api *Router) retryDownload(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	id := chi.URLParam(r, "id")
+	err := api.downloader.Retry(ctx, id)
+	switch {
+	case err == nil:
+		w.WriteHeader(http.StatusNoContent)
+	case errors.Is(err, model.ErrNotFound):
+		http.Error(w, "download not found", http.StatusNotFound)
+	case errors.Is(err, downloader.ErrInvalidRequest):
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	default:
+		log.Error(ctx, "Error retrying download", "id", id, err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+	}
+}
+
+// clearFinishedDownloads deletes the history of completed, failed and canceled jobs; queued and
+// running jobs are left alone.
+func (api *Router) clearFinishedDownloads(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	n, err := api.downloader.ClearFinished(ctx)
+	if err != nil {
+		log.Error(ctx, "Error clearing finished downloads", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]int64{"deleted": n})
 }
 
 func (api *Router) listTools(w http.ResponseWriter, r *http.Request) {

@@ -12,6 +12,7 @@ import {
   InputLabel,
 } from '@material-ui/core'
 import { httpClient } from '../dataProvider'
+import { errorMessage } from './errorMessage'
 import { useLibraries } from './useLibraries'
 
 const TOOLS = ['yt-dlp', 'scdl', 'spotdl', 'bandcamp-dl', 'khinsider']
@@ -47,9 +48,7 @@ const SubmitForm = ({ onSubmitted }) => {
       })
       .catch((error) => {
         notify(
-          error.body?.error ||
-          error.message ||
-          'resources.downloader.messages.submitError',
+          errorMessage(error, 'resources.downloader.messages.submitError'),
           { type: 'warning' },
         )
       })

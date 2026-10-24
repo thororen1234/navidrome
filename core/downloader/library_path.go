@@ -69,7 +69,7 @@ func moveJobOutput(stagingDir, targetDir string) (moved int, lastPath string, er
 		if d.IsDir() {
 			return nil
 		}
-		dest := filepath.Join(targetDir, sanitizeFilename(uniqueName(targetDir, d.Name())))
+		dest := filepath.Join(targetDir, uniqueName(targetDir, sanitizeFilename(d.Name())))
 		if err := moveFile(path, dest); err != nil {
 			return fmt.Errorf("moving %q: %w", d.Name(), err)
 		}
@@ -91,7 +91,9 @@ func uniqueName(dir, name string) string {
 	ext := filepath.Ext(name)
 	base := strings.TrimSuffix(name, ext)
 	for i := 1; ; i++ {
-		if _, err := os.Stat(filepath.Join(dir, candidate)); os.IsNotExist(err) {
+		if _, err := os.Lstat(filepath.Join(dir, candidate)); err != nil {
+			// Not-exist is the normal case; any other error will resurface (with context)
+			// when the caller tries to create the file, rather than looping here forever.
 			return candidate
 		}
 		candidate = fmt.Sprintf("%s (%d)%s", base, i, ext)

@@ -25,7 +25,10 @@ const setupHandlers = (stream, dispatchFn) => {
   }
   stream.addEventListener('keepAlive', eventHandler(dispatchFn))
   if (config.downloaderEnabled) {
-    stream.addEventListener('downloadStatus', throttledEventHandler(dispatchFn))
+    // Not throttled: one throttle covers every job's events, so a burst from two jobs would
+    // drop one job's update - possibly its final "completed". The server already rate-limits
+    // progress events.
+    stream.addEventListener('downloadStatus', eventHandler(dispatchFn))
     stream.addEventListener('toolInstallStatus', eventHandler(dispatchFn))
   }
   stream.onerror = (e) => {
@@ -85,11 +88,11 @@ const startEventStreamLegacy = async (dispatchFn) => {
       }
       newStream.addEventListener('keepAlive', eventHandler(dispatchFn))
       if (config.downloaderEnabled) {
+        newStream.addEventListener('downloadStatus', eventHandler(dispatchFn))
         newStream.addEventListener(
-          'downloadStatus',
-          throttledEventHandler(dispatchFn),
+          'toolInstallStatus',
+          eventHandler(dispatchFn),
         )
-        newStream.addEventListener('toolInstallStatus', eventHandler(dispatchFn))
       }
       newStream.onerror = (e) => {
         // eslint-disable-next-line no-console

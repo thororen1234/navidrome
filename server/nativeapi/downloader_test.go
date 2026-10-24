@@ -164,6 +164,41 @@ var _ = Describe("Downloader API", func() {
 		Expect(w.Code).To(Equal(http.StatusBadRequest))
 	})
 
+	It("retries a failed job, but not a completed one", func() {
+		repo := ds.Download(context.Background())
+		failed := &model.Download{Tool: model.DownloadToolYtDlp, SourceURL: "https://example.com/f", LibraryID: 1}
+		Expect(repo.Enqueue(failed)).To(Succeed())
+		Expect(repo.MarkFailed(failed.ID, "boom")).To(Succeed())
+		done := &model.Download{Tool: model.DownloadToolYtDlp, SourceURL: "https://example.com/d", LibraryID: 1}
+		Expect(repo.Enqueue(done)).To(Succeed())
+		Expect(repo.MarkCompleted(done.ID, "/music/d.mp3")).To(Succeed())
+
+		Expect(doRequest("POST", "/download/"+failed.ID+"/retry", nil, adminToken).Code).To(Equal(http.StatusNoContent))
+		got, _ := repo.Get(failed.ID)
+		Expect(got.Status).To(Equal(model.DownloadStatusQueued))
+		Expect(got.Error).To(BeEmpty())
+
+		Expect(doRequest("POST", "/download/"+done.ID+"/retry", nil, adminToken).Code).To(Equal(http.StatusBadRequest))
+		Expect(doRequest("POST", "/download/nope/retry", nil, adminToken).Code).To(Equal(http.StatusNotFound))
+	})
+
+	It("clears finished jobs but keeps queued ones", func() {
+		repo := ds.Download(context.Background())
+		queued := &model.Download{Tool: model.DownloadToolYtDlp, SourceURL: "https://example.com/q", LibraryID: 1}
+		Expect(repo.Enqueue(queued)).To(Succeed())
+		done := &model.Download{Tool: model.DownloadToolYtDlp, SourceURL: "https://example.com/d", LibraryID: 1}
+		Expect(repo.Enqueue(done)).To(Succeed())
+		Expect(repo.MarkCompleted(done.ID, "/music/d.mp3")).To(Succeed())
+
+		w := doRequest("DELETE", "/download", nil, adminToken)
+		Expect(w.Code).To(Equal(http.StatusOK))
+		Expect(w.Body.String()).To(ContainSubstring(`"deleted":1`))
+		_, err := repo.Get(done.ID)
+		Expect(err).To(MatchError(model.ErrNotFound))
+		_, err = repo.Get(queued.ID)
+		Expect(err).ToNot(HaveOccurred())
+	})
+
 	It("reports tool status from the tool manager", func() {
 		w := doRequest("GET", "/download/tools", nil, adminToken)
 		Expect(w.Code).To(Equal(http.StatusOK))

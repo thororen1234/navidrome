@@ -14,6 +14,7 @@ import {
   CircularProgress,
 } from '@material-ui/core'
 import { httpClient } from '../dataProvider'
+import { errorMessage } from './errorMessage'
 
 const ACTIONS = ['install', 'upgrade', 'repair']
 
@@ -50,9 +51,7 @@ const ToolStatusPanel = () => {
       })
       .catch((error) => {
         notify(
-          error.body?.error ||
-            error.message ||
-            'resources.downloader.messages.toolActionError',
+          errorMessage(error, 'resources.downloader.messages.toolActionError'),
           { type: 'warning', messageArgs: { tool, action } },
         )
       })
@@ -89,7 +88,11 @@ const ToolStatusPanel = () => {
                 <TableCell>{t.tool}</TableCell>
                 <TableCell>
                   {t.installed ? (
-                    <Chip size="small" color="primary" label={t.version || 'OK'} />
+                    <Chip
+                      size="small"
+                      color="primary"
+                      label={t.version || 'OK'}
+                    />
                   ) : (
                     <Chip
                       size="small"

@@ -4,6 +4,8 @@ import {
   PLAYER_SYNC_QUEUE,
   PLAYER_CURRENT,
   PLAYER_REFRESH_QUEUE,
+  PLAYER_SET_TRACK,
+  PLAYER_PLAY_TRACKS,
 } from '../actions'
 
 describe('playerReducer', () => {
@@ -223,5 +225,69 @@ describe('playerReducer', () => {
       const result = playerReducer(state, action)
       expect(result.playIndex).toBe(0)
     })
+  })
+})
+
+describe('playerReducer with Tidal queue items', () => {
+  const tidalItem = (id) => ({
+    id: `tidal:${id}`,
+    tidalId: id,
+    title: `Track ${id}`,
+    artist: 'Artist',
+    duration: 200,
+    streamUrl: `/api/tidal/stream/${id}?jwt=old-token`,
+    isRadio: true,
+  })
+
+  it('builds Tidal stream URLs with the current token and keeps the duration', () => {
+    localStorage.setItem('token', 'fresh-token')
+    const result = playerReducer(undefined, {
+      type: PLAYER_SET_TRACK,
+      data: tidalItem('123'),
+    })
+    expect(result.queue[0].musicSrc).toContain('/api/tidal/stream/123')
+    expect(result.queue[0].musicSrc).toContain('jwt=fresh-token')
+    expect(result.queue[0].duration).toBe(200)
+    expect(result.queue[0].singer).toBe('Artist')
+  })
+
+  it('rebuilds Tidal stream URLs on queue refresh, leaving real radio URLs alone', () => {
+    localStorage.setItem('token', 'new-token')
+    const state = {
+      queue: [
+        {
+          uuid: 'a',
+          isRadio: true,
+          musicSrc: '/api/tidal/stream/1?jwt=expired',
+          song: tidalItem('1'),
+        },
+        {
+          uuid: 'b',
+          isRadio: true,
+          musicSrc: 'https://radio.example/stream',
+          song: { name: 'Radio' },
+        },
+      ],
+      savedPlayIndex: 0,
+    }
+    const result = playerReducer(state, { type: PLAYER_REFRESH_QUEUE })
+    expect(result.queue[0].musicSrc).toContain('jwt=new-token')
+    expect(result.queue[1].musicSrc).toBe('https://radio.example/stream')
+  })
+
+  it('keeps album track order for numeric Tidal ids', () => {
+    // Tidal ids are numeric; raw numeric keys would be reordered by JS object key ordering.
+    const ids = ['300', '100', '200']
+    const data = {}
+    ids.forEach((id) => {
+      data[`tidal:${id}`] = tidalItem(id)
+    })
+    const result = playerReducer(undefined, {
+      type: PLAYER_PLAY_TRACKS,
+      data,
+      id: 'tidal:300',
+    })
+    expect(result.queue.map((q) => q.song.tidalId)).toEqual(ids)
+    expect(result.playIndex).toBe(0)
   })
 })

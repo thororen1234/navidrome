@@ -414,7 +414,22 @@
       }
     },
     "tidal": {
-      "name": "Tidal"
+      "name": "Tidal",
+      "sections": {
+        "artists": "Artists",
+        "albums": "Albums",
+        "songs": "Songs"
+      },
+      "actions": {
+        "playAll": "Play all",
+        "downloadToServer": "Download to server"
+      },
+      "messages": {
+        "searchPlaceholder": "Search Tidal…",
+        "noAlbums": "No albums found",
+        "albumCount": "%{smart_count} album |||| %{smart_count} albums",
+        "trackCount": "%{smart_count} track |||| %{smart_count} tracks"
+      }
     },
     "downloader": {
       "name": "Downloader",
@@ -436,6 +451,8 @@
       "actions": {
         "submit": "Download",
         "cancel": "Cancel",
+        "retry": "Retry",
+        "clearFinished": "Clear finished",
         "install": "Install",
         "upgrade": "Upgrade",
         "repair": "Repair"
@@ -445,6 +462,10 @@
         "submitError": "Could not queue download",
         "cancelSuccess": "Download canceled",
         "cancelError": "Could not cancel download",
+        "retrySuccess": "Download queued again",
+        "retryError": "Could not retry download",
+        "clearSuccess": "Cleared finished downloads",
+        "clearError": "Could not clear finished downloads",
         "toolActionSuccess": "%{action} finished for %{tool}",
         "toolActionError": "%{action} failed for %{tool}",
         "empty": "No downloads yet",
@@ -452,6 +473,9 @@
       },
       "tools": {
         "title": "Downloader Tools"
+      },
+      "queue": {
+        "title": "Queue"
       }
     }
   },

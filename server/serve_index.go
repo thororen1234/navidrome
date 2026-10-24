@@ -82,6 +82,7 @@ func serveIndex(ds model.DataStore, fs fs.FS, shareInfo *model.Share) http.Handl
 			"extAuthLogoutURL":          conf.Server.ExtAuth.LogoutURL,
 			"downloaderEnabled":         conf.Server.Downloader.Enabled,
 			"tidalEnabled":              conf.Server.Tidal.Enabled,
+			"tidalAllowDownload":        conf.Server.Tidal.AllowDownload && conf.Server.Downloader.Enabled,
 		}
 		if strings.HasPrefix(conf.Server.UILoginBackgroundURL, "/") {
 			appConfig["loginBackgroundURL"] = path.Join(conf.Server.BasePath, conf.Server.UILoginBackgroundURL)

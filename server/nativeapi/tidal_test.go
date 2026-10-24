@@ -3,9 +3,13 @@ package nativeapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/navidrome/navidrome/conf"
@@ -28,6 +32,7 @@ type fakeTidalClient struct {
 	streamBody   string
 	streamHeader http.Header
 	streamStatus int
+	streamTrack  tidal.CachedTrack
 	err          error
 }
 
@@ -43,22 +48,11 @@ func (f *fakeTidalClient) GetAlbum(context.Context, string) (tidal.Album, error)
 	return f.album, f.err
 }
 
-func (f *fakeTidalClient) Stream(context.Context, string, string) (io.ReadCloser, http.Header, int, error) {
-	if f.err != nil {
-		return nil, nil, 0, f.err
-	}
-	h := f.streamHeader
-	if h == nil {
-		h = http.Header{}
-	}
-	status := f.streamStatus
-	if status == 0 {
-		status = http.StatusOK
-	}
-	return io.NopCloser(strings.NewReader(f.streamBody)), h, status, nil
+func (f *fakeTidalClient) OpenStream(context.Context, string) (tidal.CachedTrack, error) {
+	return f.streamTrack, f.err
 }
 
-func (f *fakeTidalClient) DownloadTo(context.Context, string, string, io.Writer) (string, error) {
+func (f *fakeTidalClient) DownloadTo(context.Context, string, string, io.Writer, func(int64)) (string, error) {
 	return "track.flac", f.err
 }
 
@@ -169,14 +163,44 @@ var _ = Describe("Tidal API", func() {
 		Expect(album.Name).To(Equal("The Wall"))
 	})
 
-	It("proxies the stream response body and headers", func() {
-		fakeTidal.streamBody = "audio-bytes"
-		fakeTidal.streamHeader = http.Header{"Content-Type": []string{"audio/flac"}}
-		fakeTidal.streamStatus = http.StatusPartialContent
-		w := doRequest("GET", "/tidal/stream/t1", nil, regularToken)
-		Expect(w.Code).To(Equal(http.StatusPartialContent))
-		Expect(w.Header().Get("Content-Type")).To(Equal("audio/flac"))
-		Expect(w.Body.String()).To(Equal("audio-bytes"))
+	Describe("stream", func() {
+		BeforeEach(func() {
+			path := filepath.Join(GinkgoT().TempDir(), "t1.m4a")
+			Expect(os.WriteFile(path, []byte("0123456789"), 0600)).To(Succeed())
+			fakeTidal.streamTrack = tidal.CachedTrack{Path: path, ContentType: "audio/mp4"}
+		})
+
+		It("serves the cached track with its length and content type", func() {
+			w := doRequest("GET", "/tidal/stream/t1", nil, regularToken)
+			Expect(w.Code).To(Equal(http.StatusOK))
+			Expect(w.Header().Get("Content-Type")).To(Equal("audio/mp4"))
+			Expect(w.Header().Get("Content-Length")).To(Equal("10"))
+			Expect(w.Header().Get("Accept-Ranges")).To(Equal("bytes"))
+			Expect(w.Body.String()).To(Equal("0123456789"))
+		})
+
+		It("honors Range requests so the player can seek", func() {
+			req := httptest.NewRequest("GET", "/tidal/stream/t1", nil)
+			req.Header.Set(consts.UIAuthorizationHeader, "Bearer "+regularToken)
+			req.Header.Set("Range", "bytes=4-")
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+			Expect(w.Code).To(Equal(http.StatusPartialContent))
+			Expect(w.Header().Get("Content-Range")).To(Equal("bytes 4-9/10"))
+			Expect(w.Body.String()).To(Equal("456789"))
+		})
+
+		It("502s when the track can't be fetched from Tidal", func() {
+			fakeTidal.err = errors.New("upstream down")
+			w := doRequest("GET", "/tidal/stream/t1", nil, regularToken)
+			Expect(w.Code).To(Equal(http.StatusBadGateway))
+		})
+	})
+
+	It("404s cover art Tidal doesn't have, instead of a 502", func() {
+		fakeTidal.err = fmt.Errorf("wrapped: %w", tidal.ErrNotFound)
+		w := doRequest("GET", "/tidal/coverArt/ar-1", nil, regularToken)
+		Expect(w.Code).To(Equal(http.StatusNotFound))
 	})
 
 	It("rejects download-to-server from a non-admin user", func() {

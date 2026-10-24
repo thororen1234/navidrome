@@ -54,14 +54,27 @@ func (r *downloadRepository) GetAll(options ...model.QueryOptions) (model.Downlo
 	return res, err
 }
 
-func (r *downloadRepository) DequeueBatch(n int) (model.Downloads, error) {
-	sel := Select("*").From(r.tableName).
+func (r *downloadRepository) ClaimNext() (*model.Download, error) {
+	now := time.Now()
+	next := Select("id").From(r.tableName).
 		Where(Eq{"status": model.DownloadStatusQueued}).
 		OrderBy("created_at ASC").
-		Limit(uint64(n))
-	var res model.Downloads
-	err := r.queryAll(sel, &res)
-	return res, err
+		Limit(1)
+	upd := Update(r.tableName).
+		Set("status", model.DownloadStatusDownloading).
+		Set("progress", 0).
+		Set("status_message", "").
+		Set("error", "").
+		Set("started_at", now).
+		Set("updated_at", now).
+		Where(Expr("id = (?)", next)).
+		Where(Eq{"status": model.DownloadStatusQueued}).
+		Suffix("RETURNING *")
+	res := model.Download{}
+	if err := r.queryOne(upd, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
 }
 
 func (r *downloadRepository) UpdateProgress(id string, progress float64, statusMessage string) error {
@@ -70,17 +83,6 @@ func (r *downloadRepository) UpdateProgress(id string, progress float64, statusM
 		Set("progress", progress).
 		Set("status_message", statusMessage).
 		Set("updated_at", time.Now()).
-		Where(Eq{"id": id})
-	_, err := r.executeSQL(upd)
-	return err
-}
-
-func (r *downloadRepository) MarkStarted(id string) error {
-	now := time.Now()
-	upd := Update(r.tableName).
-		Set("status", model.DownloadStatusDownloading).
-		Set("started_at", now).
-		Set("updated_at", now).
 		Where(Eq{"id": id})
 	_, err := r.executeSQL(upd)
 	return err
@@ -118,6 +120,46 @@ func (r *downloadRepository) MarkCanceled(id string) error {
 		Where(Eq{"id": id})
 	_, err := r.executeSQL(upd)
 	return err
+}
+
+func (r *downloadRepository) CancelQueued(id string) (bool, error) {
+	upd := Update(r.tableName).
+		Set("status", model.DownloadStatusCanceled).
+		Set("updated_at", time.Now()).
+		Where(Eq{"id": id, "status": model.DownloadStatusQueued})
+	n, err := r.executeSQL(upd)
+	return n > 0, err
+}
+
+func (r *downloadRepository) Requeue(id string) (bool, error) {
+	now := time.Now()
+	upd := Update(r.tableName).
+		Set("status", model.DownloadStatusQueued).
+		Set("progress", 0).
+		Set("status_message", "").
+		Set("error", "").
+		Set("target_path", "").
+		Set("started_at", nil).
+		Set("completed_at", nil).
+		Set("created_at", now).
+		Set("updated_at", now).
+		Where(Eq{"id": id, "status": []model.DownloadStatus{model.DownloadStatusError, model.DownloadStatusCanceled}})
+	n, err := r.executeSQL(upd)
+	return n > 0, err
+}
+
+func (r *downloadRepository) FailInterrupted(errMsg string) (int64, error) {
+	upd := Update(r.tableName).
+		Set("status", model.DownloadStatusError).
+		Set("error", errMsg).
+		Set("attempts", Expr("attempts + 1")).
+		Set("updated_at", time.Now()).
+		Where(Eq{"status": model.DownloadStatusDownloading})
+	return r.executeSQL(upd)
+}
+
+func (r *downloadRepository) DeleteFinished() (int64, error) {
+	return r.executeSQL(Delete(r.tableName).Where(Eq{"status": model.FinishedDownloadStatuses}))
 }
 
 func (r *downloadRepository) CountByStatus(status model.DownloadStatus) (int64, error) {

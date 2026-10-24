@@ -46,24 +46,35 @@ var _ = Describe("DownloadRepository", func() {
 		Expect(err).To(MatchError(model.ErrNotFound))
 	})
 
-	It("dequeues only queued jobs, oldest first", func() {
+	It("claims only queued jobs, oldest first, one at a time", func() {
 		d1 := job(model.DownloadToolYtDlp, "https://example.com/1")
 		Expect(repo.Enqueue(d1)).To(Succeed())
 		d2 := job(model.DownloadToolScdl, "https://example.com/2")
 		Expect(repo.Enqueue(d2)).To(Succeed())
+		d3 := job(model.DownloadToolScdl, "https://example.com/3")
+		Expect(repo.Enqueue(d3)).To(Succeed())
 		Expect(repo.MarkCompleted(d1.ID, "/music/1.mp3")).To(Succeed())
 
-		got, err := repo.DequeueBatch(10)
+		got, err := repo.ClaimNext()
 		Expect(err).ToNot(HaveOccurred())
-		Expect(got).To(HaveLen(1))
-		Expect(got[0].ID).To(Equal(d2.ID))
+		Expect(got.ID).To(Equal(d2.ID))
+		Expect(got.Status).To(Equal(model.DownloadStatusDownloading))
+		Expect(got.StartedAt).ToNot(BeNil())
+
+		got, err = repo.ClaimNext()
+		Expect(err).ToNot(HaveOccurred())
+		Expect(got.ID).To(Equal(d3.ID))
+
+		_, err = repo.ClaimNext()
+		Expect(err).To(MatchError(model.ErrNotFound))
 	})
 
 	It("transitions through progress, completion and failure", func() {
 		d := job(model.DownloadToolSpotdl, "https://example.com/track")
 		Expect(repo.Enqueue(d)).To(Succeed())
 
-		Expect(repo.MarkStarted(d.ID)).To(Succeed())
+		_, err := repo.ClaimNext()
+		Expect(err).ToNot(HaveOccurred())
 		Expect(repo.UpdateProgress(d.ID, 0.5, "downloading: 50%")).To(Succeed())
 
 		got, err := repo.Get(d.ID)
@@ -94,18 +105,93 @@ var _ = Describe("DownloadRepository", func() {
 		Expect(got.Attempts).To(Equal(1))
 	})
 
-	It("cancels a queued job", func() {
+	It("cancels a queued job so it is never claimed", func() {
 		d := job(model.DownloadToolYtDlp, "https://example.com/cancel-me")
 		Expect(repo.Enqueue(d)).To(Succeed())
 
-		Expect(repo.MarkCanceled(d.ID)).To(Succeed())
+		ok, err := repo.CancelQueued(d.ID)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ok).To(BeTrue())
 		got, err := repo.Get(d.ID)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(got.Status).To(Equal(model.DownloadStatusCanceled))
 
-		batch, err := repo.DequeueBatch(10)
+		_, err = repo.ClaimNext()
+		Expect(err).To(MatchError(model.ErrNotFound))
+	})
+
+	It("does not cancel-as-queued a job the worker already claimed", func() {
+		d := job(model.DownloadToolYtDlp, "https://example.com/racy")
+		Expect(repo.Enqueue(d)).To(Succeed())
+		_, err := repo.ClaimNext()
 		Expect(err).ToNot(HaveOccurred())
-		Expect(batch).To(BeEmpty())
+
+		ok, err := repo.CancelQueued(d.ID)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ok).To(BeFalse())
+		got, _ := repo.Get(d.ID)
+		Expect(got.Status).To(Equal(model.DownloadStatusDownloading))
+	})
+
+	It("requeues failed and canceled jobs, but not running or completed ones", func() {
+		failed := job(model.DownloadToolYtDlp, "https://example.com/failed")
+		Expect(repo.Enqueue(failed)).To(Succeed())
+		Expect(repo.MarkFailed(failed.ID, "boom")).To(Succeed())
+		done := job(model.DownloadToolYtDlp, "https://example.com/done")
+		Expect(repo.Enqueue(done)).To(Succeed())
+		Expect(repo.MarkCompleted(done.ID, "/music/x.mp3")).To(Succeed())
+
+		ok, err := repo.Requeue(failed.ID)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ok).To(BeTrue())
+		got, _ := repo.Get(failed.ID)
+		Expect(got.Status).To(Equal(model.DownloadStatusQueued))
+		Expect(got.Error).To(BeEmpty())
+		Expect(got.Attempts).To(Equal(1), "attempts survive a retry")
+
+		ok, err = repo.Requeue(done.ID)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ok).To(BeFalse())
+	})
+
+	It("fails jobs left downloading by a previous run", func() {
+		d := job(model.DownloadToolYtDlp, "https://example.com/orphan")
+		Expect(repo.Enqueue(d)).To(Succeed())
+		_, err := repo.ClaimNext()
+		Expect(err).ToNot(HaveOccurred())
+		queued := job(model.DownloadToolYtDlp, "https://example.com/queued")
+		Expect(repo.Enqueue(queued)).To(Succeed())
+
+		n, err := repo.FailInterrupted("interrupted")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(n).To(Equal(int64(1)))
+		got, _ := repo.Get(d.ID)
+		Expect(got.Status).To(Equal(model.DownloadStatusError))
+		Expect(got.Error).To(Equal("interrupted"))
+		got, _ = repo.Get(queued.ID)
+		Expect(got.Status).To(Equal(model.DownloadStatusQueued))
+	})
+
+	It("deletes only finished jobs", func() {
+		queued := job(model.DownloadToolYtDlp, "https://example.com/q")
+		Expect(repo.Enqueue(queued)).To(Succeed())
+		for _, mark := range []func(string) error{
+			func(id string) error { return repo.MarkCompleted(id, "/x") },
+			func(id string) error { return repo.MarkFailed(id, "boom") },
+			repo.MarkCanceled,
+		} {
+			d := job(model.DownloadToolYtDlp, "https://example.com/f")
+			Expect(repo.Enqueue(d)).To(Succeed())
+			Expect(mark(d.ID)).To(Succeed())
+		}
+
+		n, err := repo.DeleteFinished()
+		Expect(err).ToNot(HaveOccurred())
+		Expect(n).To(Equal(int64(3)))
+		all, err := repo.GetAll()
+		Expect(err).ToNot(HaveOccurred())
+		Expect(all).To(HaveLen(1))
+		Expect(all[0].ID).To(Equal(queued.ID))
 	})
 
 	It("counts jobs by status", func() {

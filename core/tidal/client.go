@@ -16,9 +16,12 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 
+	"github.com/dustin/go-humanize"
 	"github.com/navidrome/navidrome/conf"
+	"github.com/navidrome/navidrome/core/ffmpeg"
 	"github.com/navidrome/navidrome/log"
 )
 
@@ -27,12 +30,20 @@ const (
 	clientName = "navidrome"
 )
 
-var ErrNotConfigured = errors.New("tidal: not configured (set Tidal.BaseURL/Username/Password)")
+var (
+	ErrNotConfigured = errors.New("tidal: not configured (set Tidal.BaseURL/Username/Password)")
+	ErrNotFound      = errors.New("tidal: not found")
+)
 
 type Artist struct {
-	ID     string  `json:"id"`
-	Name   string  `json:"name"`
-	Albums []Album `json:"album"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	CoverArt string `json:"coverArt,omitempty"`
+	// ArtistImageURL is the OpenSubsonic absolute image URL, used by the UI only when the bridge
+	// doesn't hand out a coverArt id for the artist.
+	ArtistImageURL string  `json:"artistImageUrl,omitempty"`
+	AlbumCount     int     `json:"albumCount,omitempty"`
+	Albums         []Album `json:"album"`
 }
 
 type Track struct {
@@ -43,6 +54,7 @@ type Track struct {
 	Album    string `json:"album"`
 	AlbumID  string `json:"albumId"`
 	Duration int    `json:"duration"`
+	Track    int    `json:"track,omitempty"`
 	CoverArt string `json:"coverArt"`
 }
 
@@ -53,6 +65,8 @@ type Album struct {
 	ArtistID  string  `json:"artistId"`
 	CoverArt  string  `json:"coverArt"`
 	SongCount int     `json:"songCount"`
+	Duration  int     `json:"duration,omitempty"`
+	Year      int     `json:"year,omitempty"`
 	Songs     []Track `json:"song"`
 }
 
@@ -62,22 +76,23 @@ type SearchResult struct {
 	Songs   []Track  `json:"song"`
 }
 
-// Client wraps TidalSubsonic's Subsonic-compatible REST API. Stream and DownloadTo are declared
-// separately (stream.go) since they proxy raw bytes rather than JSON.
+// Client wraps TidalSubsonic's Subsonic-compatible REST API. OpenStream, CoverArt and DownloadTo
+// are declared separately (stream.go) since they move raw bytes rather than JSON.
 type Client interface {
 	Search(ctx context.Context, query string) (SearchResult, error)
 	GetArtist(ctx context.Context, id string) (Artist, error)
 	GetAlbum(ctx context.Context, id string) (Album, error)
-	// Stream returns the upstream response body/headers/status for a native API handler to copy
-	// through to the browser, forwarding Range so in-browser seeking works. The caller must
-	// close the returned body.
-	Stream(ctx context.Context, id string, rangeHeader string) (body io.ReadCloser, header http.Header, statusCode int, err error)
-	// CoverArt proxies TidalSubsonic's getCoverArt endpoint the same way Stream proxies audio.
+	// OpenStream returns a local, seekable copy of track id (see streamCache), downloading it on
+	// first use, for the native API to serve with http.ServeContent.
+	OpenStream(ctx context.Context, id string) (CachedTrack, error)
+	// CoverArt proxies TidalSubsonic's getCoverArt endpoint. The caller must close the body.
 	CoverArt(ctx context.Context, id string, size string) (body io.ReadCloser, header http.Header, statusCode int, err error)
 	// DownloadTo streams the raw response for id (a single audio file for a track, a zip archive
 	// for an album - TidalSubsonic always zips multi-track downloads) into w, returning the
-	// upstream-suggested filename when one is present.
-	DownloadTo(ctx context.Context, tidalID, kind string, w io.Writer) (filename string, err error)
+	// upstream-suggested filename (or one derived from the id, kind and Content-Type). onSize, if
+	// non-nil, is called once the response headers arrive with the upstream Content-Length (-1 if
+	// unknown), so the caller can report progress as bytes land in w.
+	DownloadTo(ctx context.Context, tidalID, kind string, w io.Writer, onSize func(total int64)) (filename string, err error)
 }
 
 type client struct {
@@ -86,6 +101,7 @@ type client struct {
 	password     string
 	httpClient   httpDoer
 	streamClient httpDoer
+	streams      *streamCache
 }
 
 type httpDoer interface {
@@ -93,13 +109,26 @@ type httpDoer interface {
 }
 
 func New() Client {
-	return &client{
+	c := &client{
 		baseURL:      strings.TrimSuffix(conf.Server.Tidal.BaseURL, "/"),
 		username:     conf.Server.Tidal.Username,
 		password:     conf.Server.Tidal.Password,
 		httpClient:   &http.Client{Timeout: conf.Server.Tidal.Timeout},
 		streamClient: &http.Client{Timeout: conf.Server.Tidal.StreamTimeout},
 	}
+	maxBytes, err := humanize.ParseBytes(conf.Server.Tidal.StreamCacheSize)
+	if err != nil {
+		log.Warn("Tidal: invalid StreamCacheSize, using 1GB", "value", conf.Server.Tidal.StreamCacheSize, err)
+		maxBytes = 1 << 30
+	}
+	c.streams = &streamCache{
+		dir:      filepath.Join(conf.Server.CacheFolder.String(), "tidal"),
+		maxBytes: int64(maxBytes), //nolint:gosec // cache sizes are nowhere near int64 overflow
+		fetch:    c.fetchStream,
+		remux:    ffmpeg.RemuxToMP4,
+		timeout:  conf.Server.Tidal.StreamTimeout,
+	}
+	return c
 }
 
 func (c *client) configured() bool {

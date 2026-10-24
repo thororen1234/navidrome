@@ -314,7 +314,10 @@ type tidalOptions struct {
 	Password      string //nolint:gosec
 	Timeout       time.Duration
 	StreamTimeout time.Duration
-	AllowDownload bool // gates "download to server", independent of browse/stream
+	// StreamCacheSize caps the on-disk cache of streamed tracks (CacheFolder/tidal). Tracks are
+	// downloaded whole before playing so they can be remuxed into a seekable file.
+	StreamCacheSize string
+	AllowDownload   bool // gates "download to server", independent of browse/stream
 }
 
 type extAuthOptions struct {
@@ -1127,6 +1130,7 @@ func setViperDefaults() {
 	viper.SetDefault("tidal.password", "")
 	viper.SetDefault("tidal.timeout", 15*time.Second)
 	viper.SetDefault("tidal.streamtimeout", 2*time.Hour)
+	viper.SetDefault("tidal.streamcachesize", "1GB")
 	viper.SetDefault("tidal.allowdownload", false)
 
 	// DevFlags. These are used to enable/disable debugging and incomplete features

@@ -54,7 +54,7 @@ type fakeTidal struct {
 	block   chan struct{} // if non-nil, DownloadTo waits on this (or ctx.Done()) before returning
 }
 
-func (f *fakeTidal) DownloadTo(ctx context.Context, _, _ string, w io.Writer) (string, error) {
+func (f *fakeTidal) DownloadTo(ctx context.Context, _, _ string, w io.Writer, onSize func(int64)) (string, error) {
 	if f.started != nil {
 		close(f.started)
 	}
@@ -67,6 +67,9 @@ func (f *fakeTidal) DownloadTo(ctx context.Context, _, _ string, w io.Writer) (s
 	}
 	if f.err != nil {
 		return "", f.err
+	}
+	if onSize != nil {
+		onSize(int64(len(f.content)))
 	}
 	_, err := w.Write(f.content)
 	return f.name, err
@@ -155,6 +158,40 @@ var _ = Describe("Worker", func() {
 		Expect(filepath.Join(targetDir, "02 Track.flac")).To(BeAnExistingFile())
 	})
 
+	It("files a named album zip into its own folder and rescans just that folder", func() {
+		zipBytes := zipOf(map[string]string{"Artist - Album/01 Track.flac": "one", "Artist - Album/cover.jpg": "img"})
+		w := NewWorker(ds, scanner, broker, &fakeTidal{content: zipBytes, name: "Artist - Album.zip"}, reg)
+		d := newDownload(model.DownloadToolTidal, "album")
+
+		w.process(ctx, d)
+
+		albumDir := filepath.Join(libPath, "Downloads", "tidal", "Artist - Album")
+		got, err := ds.Download(ctx).Get(d.ID)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(got.Status).To(Equal(model.DownloadStatusCompleted))
+		Expect(got.TargetPath).To(Equal(albumDir))
+		Expect(filepath.Join(albumDir, "01 Track.flac")).To(BeAnExistingFile())
+		Expect(filepath.Join(albumDir, "cover.jpg")).To(BeAnExistingFile())
+		calls := scanner.GetScanFoldersCalls()
+		Expect(calls).To(HaveLen(1))
+		Expect(calls[0].Targets[0].FolderPath).To(Equal(filepath.Join("Downloads", "tidal", "Artist - Album")))
+	})
+
+	It("reports transfer progress for tidal downloads", func() {
+		w := NewWorker(ds, scanner, broker, &fakeTidal{content: []byte("audio-bytes"), name: "Song.flac"}, reg)
+		d := newDownload(model.DownloadToolTidal, "track")
+
+		w.process(ctx, d)
+
+		var sawTransfer bool
+		for _, e := range broker.getEvents() {
+			if evt, ok := e.(*events.DownloadStatus); ok && evt.Progress > 0 && evt.Progress < 1 {
+				sawTransfer = true
+			}
+		}
+		Expect(sawTransfer).To(BeTrue())
+	})
+
 	It("marks the job failed when the tidal client errors", func() {
 		w := NewWorker(ds, scanner, broker, &fakeTidal{err: errors.New("boom")}, reg)
 		d := newDownload(model.DownloadToolTidal, "track")
@@ -233,6 +270,94 @@ var _ = Describe("Worker", func() {
 		w.process(ctx, d)
 
 		Expect(reg.cancel(d.ID)).To(BeFalse(), "a finished job should already be unregistered")
+	})
+
+	It("cancels a job whose cancel arrives between claim and register", func() {
+		block := make(chan struct{}) // never closed: only the cancel can end the download
+		w := NewWorker(ds, scanner, broker, &fakeTidal{block: block}, reg)
+		d := newDownload(model.DownloadToolTidal, "track")
+
+		reg.cancelClaimed(d.ID) // before process() registers it
+		w.process(ctx, d)
+
+		got, err := ds.Download(ctx).Get(d.ID)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(got.Status).To(Equal(model.DownloadStatusCanceled))
+	})
+
+	Describe("Run", func() {
+		run := func(w *Worker) context.CancelFunc {
+			runCtx, cancel := context.WithCancel(ctx)
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				_ = w.Run(runCtx)
+			}()
+			return func() {
+				cancel()
+				Eventually(done).Should(BeClosed())
+			}
+		}
+
+		It("fails jobs left downloading by a previous run before starting", func() {
+			d := newDownload(model.DownloadToolTidal, "track")
+			_, err := ds.Download(ctx).ClaimNext() // simulate a crash mid-download
+			Expect(err).ToNot(HaveOccurred())
+
+			stop := run(NewWorker(ds, scanner, broker, &fakeTidal{content: []byte("x"), name: "x.flac"}, reg))
+			defer stop()
+
+			Eventually(func() model.DownloadStatus {
+				got, _ := ds.Download(ctx).Get(d.ID)
+				return got.Status
+			}).Should(Equal(model.DownloadStatusError))
+			got, _ := ds.Download(ctx).Get(d.ID)
+			Expect(got.Error).To(ContainSubstring("interrupted"))
+		})
+
+		It("picks up a submitted job immediately, without waiting for the poll interval", func() {
+			stop := run(NewWorker(ds, scanner, broker, &fakeTidal{content: []byte("x"), name: "x.flac"}, reg))
+			defer stop()
+
+			svc := NewService(ds, reg)
+			d, err := svc.Submit(ctx, SubmitRequest{Tool: model.DownloadToolTidal, TidalID: "t1", TidalKind: "track", LibraryID: 1})
+			Expect(err).ToNot(HaveOccurred())
+
+			Eventually(func() model.DownloadStatus {
+				got, _ := ds.Download(ctx).Get(d.ID)
+				return got.Status
+			}, 2*time.Second).Should(Equal(model.DownloadStatusCompleted))
+		})
+
+		It("keeps other slots busy while one job runs long", func() {
+			prev := conf.Server.Downloader.MaxConcurrent
+			conf.Server.Downloader.MaxConcurrent = 2
+			defer func() { conf.Server.Downloader.MaxConcurrent = prev }()
+
+			slow := &fakeTidal{block: make(chan struct{}), started: make(chan struct{})}
+			slowJob := newDownload(model.DownloadToolTidal, "track")
+			w := NewWorker(ds, scanner, broker, slow, reg)
+			stop := run(w)
+			defer stop()
+			Eventually(slow.started).Should(BeClosed())
+
+			// Swap in a fast client for the next jobs; the slow one is still blocked.
+			w.tidal = &fakeTidal{content: []byte("x"), name: "x.flac"}
+			svc := NewService(ds, reg)
+			for range 3 {
+				d, err := svc.Submit(ctx, SubmitRequest{Tool: model.DownloadToolTidal, TidalID: "t", TidalKind: "track", LibraryID: 1})
+				Expect(err).ToNot(HaveOccurred())
+				Eventually(func() model.DownloadStatus {
+					got, _ := ds.Download(ctx).Get(d.ID)
+					return got.Status
+				}, 2*time.Second).Should(Equal(model.DownloadStatusCompleted))
+			}
+			close(slow.block)
+			Eventually(func() model.DownloadStatus {
+				got, _ := ds.Download(ctx).Get(slowJob.ID)
+				return got.Status
+			}, 2*time.Second).ShouldNot(Equal(model.DownloadStatusDownloading))
+		})
 	})
 
 	It("fails when the target library no longer exists", func() {

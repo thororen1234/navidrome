@@ -10,18 +10,33 @@ import (
 // between Service and Worker (both hold the same *registry, injected via wire), it is the only
 // coupling between the two: Service never touches the DB for a running job's terminal status,
 // leaving that to the Worker itself once it observes the cancellation.
+//
+// It also carries the worker's wake-up signal, so a newly submitted job starts right away
+// instead of waiting for the next poll tick.
 type registry struct {
 	mu      sync.Mutex
 	cancels map[string]context.CancelFunc
+	// pending holds cancel requests for jobs the worker has claimed but not registered yet (the
+	// short window between ClaimNext and register); register honors them immediately.
+	pending map[string]struct{}
+	wake    chan struct{}
 }
 
 func NewRegistry() *registry {
-	return &registry{cancels: map[string]context.CancelFunc{}}
+	return &registry{
+		cancels: map[string]context.CancelFunc{},
+		pending: map[string]struct{}{},
+		wake:    make(chan struct{}, 1),
+	}
 }
 
 func (r *registry) register(id string, cancel context.CancelFunc) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if _, ok := r.pending[id]; ok {
+		delete(r.pending, id)
+		cancel()
+	}
 	r.cancels[id] = cancel
 }
 
@@ -29,6 +44,7 @@ func (r *registry) unregister(id string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	delete(r.cancels, id)
+	delete(r.pending, id)
 }
 
 // cancel invokes the job's cancel function if it is still registered (i.e. still running),
@@ -44,4 +60,27 @@ func (r *registry) cancel(id string) bool {
 	}
 	cancel()
 	return true
+}
+
+// cancelClaimed cancels a job the DB says is downloading: right away if it's registered, or as
+// soon as the worker registers it.
+func (r *registry) cancelClaimed(id string) {
+	r.mu.Lock()
+	cancel, ok := r.cancels[id]
+	if !ok {
+		r.pending[id] = struct{}{}
+	}
+	r.mu.Unlock()
+	if ok {
+		cancel()
+	}
+}
+
+// notify wakes the worker without blocking; one pending signal is enough to make it re-check
+// the queue.
+func (r *registry) notify() {
+	select {
+	case r.wake <- struct{}{}:
+	default:
+	}
 }

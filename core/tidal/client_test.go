@@ -79,7 +79,7 @@ var _ = Describe("client", func() {
 				Expect(r.URL.Path).To(Equal("/rest/search3"))
 				Expect(r.URL.Query().Get("query")).To(Equal("floyd"))
 				_, _ = w.Write([]byte(`{"subsonic-response":{"status":"ok","searchResult3":{
-					"artist":[{"id":"a1","name":"Pink Floyd"}],
+					"artist":[{"id":"a1","name":"Pink Floyd","coverArt":"ar-a1","artistImageUrl":"https://img.example/a1.jpg"}],
 					"album":[{"id":"al1","name":"The Wall","artist":"Pink Floyd","artistId":"a1","songCount":2}],
 					"song":[{"id":"s1","title":"Comfortably Numb","artist":"Pink Floyd","album":"The Wall","duration":384}]
 				}}}`))
@@ -89,6 +89,8 @@ var _ = Describe("client", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result.Artists).To(HaveLen(1))
 			Expect(result.Artists[0].Name).To(Equal("Pink Floyd"))
+			Expect(result.Artists[0].CoverArt).To(Equal("ar-a1"))
+			Expect(result.Artists[0].ArtistImageURL).To(Equal("https://img.example/a1.jpg"))
 			Expect(result.Albums).To(HaveLen(1))
 			Expect(result.Albums[0].Name).To(Equal("The Wall"))
 			Expect(result.Songs).To(HaveLen(1))
@@ -172,10 +174,25 @@ var _ = Describe("client", func() {
 			}))
 
 			var buf strings.Builder
-			filename, err := c.DownloadTo(context.Background(), "t1", "track", &buf)
+			var gotSize int64
+			filename, err := c.DownloadTo(context.Background(), "t1", "track", &buf, func(n int64) { gotSize = n })
 			Expect(err).ToNot(HaveOccurred())
 			Expect(filename).To(Equal("track.flac"))
 			Expect(buf.String()).To(Equal("audio-bytes"))
+			Expect(gotSize).To(Equal(int64(len("audio-bytes"))))
+		})
+
+		It("derives a track's fallback extension from its Content-Type", func() {
+			var c *client
+			c, srv = newTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "audio/mp4")
+				_, _ = w.Write([]byte("audio-bytes"))
+			}))
+
+			var buf strings.Builder
+			filename, err := c.DownloadTo(context.Background(), "t1", "track", &buf, nil)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(filename).To(Equal("t1.m4a"))
 		})
 
 		It("falls back to an id/kind-based filename with no Content-Disposition", func() {
@@ -185,7 +202,7 @@ var _ = Describe("client", func() {
 			}))
 
 			var buf strings.Builder
-			filename, err := c.DownloadTo(context.Background(), "al1", "album", &buf)
+			filename, err := c.DownloadTo(context.Background(), "al1", "album", &buf, nil)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(filename).To(Equal("al1.zip"))
 		})
@@ -197,7 +214,7 @@ var _ = Describe("client", func() {
 			}))
 
 			var buf strings.Builder
-			_, err := c.DownloadTo(context.Background(), "missing", "track", &buf)
+			_, err := c.DownloadTo(context.Background(), "missing", "track", &buf, nil)
 			Expect(err).To(HaveOccurred())
 		})
 	})

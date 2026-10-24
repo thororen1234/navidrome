@@ -29,12 +29,14 @@ type SubmitRequest struct {
 }
 
 // Service is the synchronous half of the downloader: it validates and enqueues jobs, and can
-// cancel one - whether it's still queued or already downloading. The Worker drains the queue
-// and actually runs jobs asynchronously; Service and Worker share a *registry so Cancel can stop
-// a job that's mid-flight, not just remove one that hasn't started.
+// cancel one - whether it's still queued or already downloading - or retry one that failed. The
+// Worker drains the queue and actually runs jobs asynchronously; Service and Worker share a
+// *registry so Cancel can stop a job that's mid-flight, not just remove one that hasn't started.
 type Service interface {
 	Submit(ctx context.Context, req SubmitRequest) (*model.Download, error)
 	Cancel(ctx context.Context, id string) error
+	Retry(ctx context.Context, id string) error
+	ClearFinished(ctx context.Context) (int64, error)
 }
 
 type service struct {
@@ -64,29 +66,56 @@ func (s *service) Submit(ctx context.Context, req SubmitRequest) (*model.Downloa
 	if err := s.ds.Download(ctx).Enqueue(d); err != nil {
 		return nil, err
 	}
+	s.reg.notify()
 	return d, nil
 }
 
 // Cancel stops a job. A still-queued job is simply marked canceled. A downloading job is
 // stopped by canceling its running context (which kills the subprocess or aborts the in-flight
 // Tidal request); the worker itself observes that and writes the terminal "canceled" status, so
-// this never races the worker's own completion/failure write.
+// this never races the worker's own completion/failure write. CancelQueued is conditional, so a
+// job the worker claims between the Get and the cancel falls through to the running-job path
+// instead of being marked canceled while it keeps downloading.
 func (s *service) Cancel(ctx context.Context, id string) error {
 	d, err := s.ds.Download(ctx).Get(id)
 	if err != nil {
 		return err
 	}
 	switch d.Status {
-	case model.DownloadStatusQueued:
-		return s.ds.Download(ctx).MarkCanceled(id)
-	case model.DownloadStatusDownloading:
-		if s.reg.cancel(id) {
-			return nil
+	case model.DownloadStatusQueued, model.DownloadStatusDownloading:
+		if d.Status == model.DownloadStatusQueued {
+			ok, err := s.ds.Download(ctx).CancelQueued(id)
+			if err != nil || ok {
+				return err
+			}
 		}
-		return fmt.Errorf("%w: job %s is downloading but not currently running", ErrInvalidRequest, id)
+		s.reg.cancelClaimed(id)
+		return nil
 	default:
 		return fmt.Errorf("%w: job %s is %s, cannot be canceled", ErrInvalidRequest, id, d.Status)
 	}
+}
+
+// Retry puts a failed or canceled job back on the queue, unchanged.
+func (s *service) Retry(ctx context.Context, id string) error {
+	d, err := s.ds.Download(ctx).Get(id)
+	if err != nil {
+		return err
+	}
+	ok, err := s.ds.Download(ctx).Requeue(id)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("%w: job %s is %s, only failed or canceled jobs can be retried", ErrInvalidRequest, id, d.Status)
+	}
+	s.reg.notify()
+	return nil
+}
+
+// ClearFinished deletes every completed, failed and canceled job from the queue history.
+func (s *service) ClearFinished(ctx context.Context) (int64, error) {
+	return s.ds.Download(ctx).DeleteFinished()
 }
 
 func validate(req SubmitRequest) error {
