@@ -14,15 +14,14 @@ type downloadRepository struct {
 	sqlRepository
 }
 
-func NewDownloadRepository(ctx context.Context, db dbx.Builder) model.DownloadRepository {
+func NewDownloadRepository(db dbx.Builder) model.DownloadRepository {
 	r := &downloadRepository{}
-	r.ctx = ctx
 	r.db = db
 	r.tableName = "download"
 	return r
 }
 
-func (r *downloadRepository) Enqueue(d *model.Download) error {
+func (r *downloadRepository) Enqueue(ctx context.Context, d *model.Download) error {
 	if d.ID == "" {
 		d.ID = id.NewRandom()
 	}
@@ -36,25 +35,25 @@ func (r *downloadRepository) Enqueue(d *model.Download) error {
 			"created_at", "updated_at").
 		Values(d.ID, d.Tool, d.SourceURL, d.TidalID, d.TidalKind, d.Status, 0, "", "",
 			d.LibraryID, "", d.RequestedBy, 0, d.CreatedAt, d.UpdatedAt)
-	_, err := r.executeSQL(ins)
+	_, err := r.executeSQL(ctx, ins)
 	return err
 }
 
-func (r *downloadRepository) Get(id string) (*model.Download, error) {
-	sel := r.newSelect().Where(Eq{"id": id}).Columns("*")
+func (r *downloadRepository) Get(ctx context.Context, id string) (*model.Download, error) {
+	sel := r.newSelect(ctx).Where(Eq{"id": id}).Columns("*")
 	res := model.Download{}
-	err := r.queryOne(sel, &res)
+	err := r.queryOne(ctx, sel, &res)
 	return &res, err
 }
 
-func (r *downloadRepository) GetAll(options ...model.QueryOptions) (model.Downloads, error) {
-	sel := r.newSelect(options...).Columns("*")
+func (r *downloadRepository) GetAll(ctx context.Context, options ...model.QueryOptions) (model.Downloads, error) {
+	sel := r.newSelect(ctx, options...).Columns("*")
 	res := model.Downloads{}
-	err := r.queryAll(sel, &res)
+	err := r.queryAll(ctx, sel, &res)
 	return res, err
 }
 
-func (r *downloadRepository) ClaimNext() (*model.Download, error) {
+func (r *downloadRepository) ClaimNext(ctx context.Context) (*model.Download, error) {
 	now := time.Now()
 	next := Select("id").From(r.tableName).
 		Where(Eq{"status": model.DownloadStatusQueued}).
@@ -71,24 +70,24 @@ func (r *downloadRepository) ClaimNext() (*model.Download, error) {
 		Where(Eq{"status": model.DownloadStatusQueued}).
 		Suffix("RETURNING *")
 	res := model.Download{}
-	if err := r.queryOne(upd, &res); err != nil {
+	if err := r.queryOne(ctx, upd, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
 }
 
-func (r *downloadRepository) UpdateProgress(id string, progress float64, statusMessage string) error {
+func (r *downloadRepository) UpdateProgress(ctx context.Context, id string, progress float64, statusMessage string) error {
 	upd := Update(r.tableName).
 		Set("status", model.DownloadStatusDownloading).
 		Set("progress", progress).
 		Set("status_message", statusMessage).
 		Set("updated_at", time.Now()).
 		Where(Eq{"id": id})
-	_, err := r.executeSQL(upd)
+	_, err := r.executeSQL(ctx, upd)
 	return err
 }
 
-func (r *downloadRepository) MarkCompleted(id string, targetPath string) error {
+func (r *downloadRepository) MarkCompleted(ctx context.Context, id string, targetPath string) error {
 	now := time.Now()
 	upd := Update(r.tableName).
 		Set("status", model.DownloadStatusCompleted).
@@ -97,11 +96,11 @@ func (r *downloadRepository) MarkCompleted(id string, targetPath string) error {
 		Set("completed_at", now).
 		Set("updated_at", now).
 		Where(Eq{"id": id})
-	_, err := r.executeSQL(upd)
+	_, err := r.executeSQL(ctx, upd)
 	return err
 }
 
-func (r *downloadRepository) MarkFailed(id string, errMsg string) error {
+func (r *downloadRepository) MarkFailed(ctx context.Context, id string, errMsg string) error {
 	now := time.Now()
 	upd := Update(r.tableName).
 		Set("status", model.DownloadStatusError).
@@ -109,29 +108,29 @@ func (r *downloadRepository) MarkFailed(id string, errMsg string) error {
 		Set("attempts", Expr("attempts + 1")).
 		Set("updated_at", now).
 		Where(Eq{"id": id})
-	_, err := r.executeSQL(upd)
+	_, err := r.executeSQL(ctx, upd)
 	return err
 }
 
-func (r *downloadRepository) MarkCanceled(id string) error {
+func (r *downloadRepository) MarkCanceled(ctx context.Context, id string) error {
 	upd := Update(r.tableName).
 		Set("status", model.DownloadStatusCanceled).
 		Set("updated_at", time.Now()).
 		Where(Eq{"id": id})
-	_, err := r.executeSQL(upd)
+	_, err := r.executeSQL(ctx, upd)
 	return err
 }
 
-func (r *downloadRepository) CancelQueued(id string) (bool, error) {
+func (r *downloadRepository) CancelQueued(ctx context.Context, id string) (bool, error) {
 	upd := Update(r.tableName).
 		Set("status", model.DownloadStatusCanceled).
 		Set("updated_at", time.Now()).
 		Where(Eq{"id": id, "status": model.DownloadStatusQueued})
-	n, err := r.executeSQL(upd)
+	n, err := r.executeSQL(ctx, upd)
 	return n > 0, err
 }
 
-func (r *downloadRepository) Requeue(id string) (bool, error) {
+func (r *downloadRepository) Requeue(ctx context.Context, id string) (bool, error) {
 	now := time.Now()
 	upd := Update(r.tableName).
 		Set("status", model.DownloadStatusQueued).
@@ -144,27 +143,27 @@ func (r *downloadRepository) Requeue(id string) (bool, error) {
 		Set("created_at", now).
 		Set("updated_at", now).
 		Where(Eq{"id": id, "status": []model.DownloadStatus{model.DownloadStatusError, model.DownloadStatusCanceled}})
-	n, err := r.executeSQL(upd)
+	n, err := r.executeSQL(ctx, upd)
 	return n > 0, err
 }
 
-func (r *downloadRepository) FailInterrupted(errMsg string) (int64, error) {
+func (r *downloadRepository) FailInterrupted(ctx context.Context, errMsg string) (int64, error) {
 	upd := Update(r.tableName).
 		Set("status", model.DownloadStatusError).
 		Set("error", errMsg).
 		Set("attempts", Expr("attempts + 1")).
 		Set("updated_at", time.Now()).
 		Where(Eq{"status": model.DownloadStatusDownloading})
-	return r.executeSQL(upd)
+	return r.executeSQL(ctx, upd)
 }
 
-func (r *downloadRepository) DeleteFinished() (int64, error) {
-	return r.executeSQL(Delete(r.tableName).Where(Eq{"status": model.FinishedDownloadStatuses}))
+func (r *downloadRepository) DeleteFinished(ctx context.Context) (int64, error) {
+	return r.executeSQL(ctx, Delete(r.tableName).Where(Eq{"status": model.FinishedDownloadStatuses}))
 }
 
-func (r *downloadRepository) CountByStatus(status model.DownloadStatus) (int64, error) {
+func (r *downloadRepository) CountByStatus(ctx context.Context, status model.DownloadStatus) (int64, error) {
 	var res struct{ Count int64 }
-	err := r.queryOne(Select("count(*) as count").From(r.tableName).Where(Eq{"status": status}), &res)
+	err := r.queryOne(ctx, Select("count(*) as count").From(r.tableName).Where(Eq{"status": status}), &res)
 	return res.Count, err
 }
 

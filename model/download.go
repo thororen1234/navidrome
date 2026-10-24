@@ -1,6 +1,9 @@
 package model
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type DownloadTool string
 
@@ -54,26 +57,26 @@ type Downloads []Download
 // job, retrying) are conditional on the current status and report whether they applied, so two
 // writers can never both "win" the same job.
 type DownloadRepository interface {
-	Enqueue(d *Download) error
-	Get(id string) (*Download, error)
-	GetAll(options ...QueryOptions) (Downloads, error)
+	Enqueue(ctx context.Context, d *Download) error
+	Get(ctx context.Context, id string) (*Download, error)
+	GetAll(ctx context.Context, options ...QueryOptions) (Downloads, error)
 	// ClaimNext atomically moves the oldest queued job to downloading and returns it, or
 	// ErrNotFound when the queue is empty.
-	ClaimNext() (*Download, error)
-	UpdateProgress(id string, progress float64, statusMessage string) error
-	MarkCompleted(id string, targetPath string) error
-	MarkFailed(id string, errMsg string) error
-	MarkCanceled(id string) error
+	ClaimNext(ctx context.Context) (*Download, error)
+	UpdateProgress(ctx context.Context, id string, progress float64, statusMessage string) error
+	MarkCompleted(ctx context.Context, id string, targetPath string) error
+	MarkFailed(ctx context.Context, id string, errMsg string) error
+	MarkCanceled(ctx context.Context, id string) error
 	// CancelQueued cancels id only if it is still queued; false means the worker already claimed it.
-	CancelQueued(id string) (bool, error)
+	CancelQueued(ctx context.Context, id string) (bool, error)
 	// Requeue puts a failed or canceled job back at the end of the queue; false means it wasn't
 	// in a retryable state.
-	Requeue(id string) (bool, error)
+	Requeue(ctx context.Context, id string) (bool, error)
 	// FailInterrupted marks every job left in downloading (by a crash or restart) as failed.
-	FailInterrupted(errMsg string) (int64, error)
+	FailInterrupted(ctx context.Context, errMsg string) (int64, error)
 	// DeleteFinished removes every completed, failed and canceled job.
-	DeleteFinished() (int64, error)
-	CountByStatus(status DownloadStatus) (int64, error)
+	DeleteFinished(ctx context.Context) (int64, error)
+	CountByStatus(ctx context.Context, status DownloadStatus) (int64, error)
 }
 
 // FinishedDownloadStatuses are the terminal states a job can't leave except via Requeue.

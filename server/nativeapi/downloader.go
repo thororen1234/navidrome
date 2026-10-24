@@ -45,7 +45,7 @@ func downloaderEnabledMiddleware(next http.Handler) http.Handler {
 
 func (api *Router) listDownloads(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	items, err := api.ds.Download(ctx).GetAll(model.QueryOptions{Sort: "created_at", Order: "desc"})
+	items, err := api.ds.Download().GetAll(ctx, model.QueryOptions{Sort: "created_at", Order: "desc"})
 	if err != nil {
 		log.Error(ctx, "Error listing downloads", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)

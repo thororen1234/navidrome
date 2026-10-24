@@ -52,7 +52,7 @@ func (s *service) Submit(ctx context.Context, req SubmitRequest) (*model.Downloa
 	if err := validate(req); err != nil {
 		return nil, err
 	}
-	if _, err := s.ds.Library(ctx).Get(req.LibraryID); err != nil {
+	if _, err := s.ds.Library().Get(ctx, req.LibraryID); err != nil {
 		return nil, fmt.Errorf("%w: library %d: %w", ErrInvalidRequest, req.LibraryID, err)
 	}
 	d := &model.Download{
@@ -63,7 +63,7 @@ func (s *service) Submit(ctx context.Context, req SubmitRequest) (*model.Downloa
 		LibraryID:   req.LibraryID,
 		RequestedBy: req.UserID,
 	}
-	if err := s.ds.Download(ctx).Enqueue(d); err != nil {
+	if err := s.ds.Download().Enqueue(ctx, d); err != nil {
 		return nil, err
 	}
 	s.reg.notify()
@@ -77,14 +77,14 @@ func (s *service) Submit(ctx context.Context, req SubmitRequest) (*model.Downloa
 // job the worker claims between the Get and the cancel falls through to the running-job path
 // instead of being marked canceled while it keeps downloading.
 func (s *service) Cancel(ctx context.Context, id string) error {
-	d, err := s.ds.Download(ctx).Get(id)
+	d, err := s.ds.Download().Get(ctx, id)
 	if err != nil {
 		return err
 	}
 	switch d.Status {
 	case model.DownloadStatusQueued, model.DownloadStatusDownloading:
 		if d.Status == model.DownloadStatusQueued {
-			ok, err := s.ds.Download(ctx).CancelQueued(id)
+			ok, err := s.ds.Download().CancelQueued(ctx, id)
 			if err != nil || ok {
 				return err
 			}
@@ -98,11 +98,11 @@ func (s *service) Cancel(ctx context.Context, id string) error {
 
 // Retry puts a failed or canceled job back on the queue, unchanged.
 func (s *service) Retry(ctx context.Context, id string) error {
-	d, err := s.ds.Download(ctx).Get(id)
+	d, err := s.ds.Download().Get(ctx, id)
 	if err != nil {
 		return err
 	}
-	ok, err := s.ds.Download(ctx).Requeue(id)
+	ok, err := s.ds.Download().Requeue(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -115,7 +115,7 @@ func (s *service) Retry(ctx context.Context, id string) error {
 
 // ClearFinished deletes every completed, failed and canceled job from the queue history.
 func (s *service) ClearFinished(ctx context.Context) (int64, error) {
-	return s.ds.Download(ctx).DeleteFinished()
+	return s.ds.Download().DeleteFinished(ctx)
 }
 
 func validate(req SubmitRequest) error {

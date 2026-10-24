@@ -17,6 +17,7 @@ import (
 	"github.com/navidrome/navidrome/consts"
 	"github.com/navidrome/navidrome/core/auth"
 	"github.com/navidrome/navidrome/core/downloader"
+	"github.com/navidrome/navidrome/core/playlists"
 	"github.com/navidrome/navidrome/core/tidal"
 	"github.com/navidrome/navidrome/model"
 	"github.com/navidrome/navidrome/server"
@@ -107,14 +108,14 @@ var _ = Describe("Tidal API", func() {
 		fakeTidal = &fakeTidalClient{}
 		auth.Init(ds)
 
-		nativeRouter := New(ds, nil, nil, nil, tests.NewMockLibraryService(), tests.NewMockUserService(), nil, nil, nil,
+		nativeRouter := New(ds, nil, playlists.NewPlaylists(ds, nil), nil, tests.NewMockLibraryService(), tests.NewMockUserService(), nil, nil, nil, nil, nil,
 			downloader.NewService(ds, downloader.NewRegistry()), nil, nil, fakeTidal)
 		router = server.JWTVerifier(nativeRouter)
 
 		adminUser = model.User{ID: "admin-1", UserName: "admin", Name: "Admin", IsAdmin: true, NewPassword: "adminpass"}
 		regularUser = model.User{ID: "user-1", UserName: "regular", Name: "Regular", IsAdmin: false, NewPassword: "userpass"}
-		Expect(ds.User(context.Background()).Put(&adminUser)).To(Succeed())
-		Expect(ds.User(context.Background()).Put(&regularUser)).To(Succeed())
+		Expect(ds.User().Put(context.Background(), &adminUser)).To(Succeed())
+		Expect(ds.User().Put(context.Background(), &regularUser)).To(Succeed())
 		var err error
 		adminToken, err = auth.CreateToken(&adminUser)
 		Expect(err).ToNot(HaveOccurred())

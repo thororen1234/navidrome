@@ -14,6 +14,7 @@ import (
 	"github.com/navidrome/navidrome/core/auth"
 	"github.com/navidrome/navidrome/core/downloader"
 	"github.com/navidrome/navidrome/core/downloader/toolmgr"
+	"github.com/navidrome/navidrome/core/playlists"
 	"github.com/navidrome/navidrome/model"
 	"github.com/navidrome/navidrome/server"
 	"github.com/navidrome/navidrome/server/events"
@@ -98,14 +99,14 @@ var _ = Describe("Downloader API", func() {
 		broker = &recordingBroker{}
 		auth.Init(ds)
 
-		nativeRouter := New(ds, nil, nil, nil, tests.NewMockLibraryService(), tests.NewMockUserService(), nil, nil, nil,
+		nativeRouter := New(ds, nil, playlists.NewPlaylists(ds, nil), nil, tests.NewMockLibraryService(), tests.NewMockUserService(), nil, nil, nil, nil, nil,
 			downloader.NewService(ds, downloader.NewRegistry()), toolMgr, broker, nil)
 		router = server.JWTVerifier(nativeRouter)
 
 		adminUser = model.User{ID: "admin-1", UserName: "admin", Name: "Admin", IsAdmin: true, NewPassword: "adminpass"}
 		regularUser = model.User{ID: "user-1", UserName: "regular", Name: "Regular", IsAdmin: false, NewPassword: "userpass"}
-		Expect(ds.User(context.Background()).Put(&adminUser)).To(Succeed())
-		Expect(ds.User(context.Background()).Put(&regularUser)).To(Succeed())
+		Expect(ds.User().Put(context.Background(), &adminUser)).To(Succeed())
+		Expect(ds.User().Put(context.Background(), &regularUser)).To(Succeed())
 		var err error
 		adminToken, err = auth.CreateToken(&adminUser)
 		Expect(err).ToNot(HaveOccurred())
@@ -150,31 +151,32 @@ var _ = Describe("Downloader API", func() {
 		w = doRequest("DELETE", "/download/"+created.ID, nil, adminToken)
 		Expect(w.Code).To(Equal(http.StatusNoContent))
 
-		got, err := ds.Download(context.Background()).Get(created.ID)
+		got, err := ds.Download().Get(context.Background(), created.ID)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(got.Status).To(Equal(model.DownloadStatusCanceled))
 	})
 
 	It("rejects canceling a job that is not queued", func() {
 		d := &model.Download{Tool: model.DownloadToolYtDlp, SourceURL: "https://example.com/x", LibraryID: 1}
-		Expect(ds.Download(context.Background()).Enqueue(d)).To(Succeed())
-		Expect(ds.Download(context.Background()).MarkCompleted(d.ID, "/music/x.mp3")).To(Succeed())
+		Expect(ds.Download().Enqueue(context.Background(), d)).To(Succeed())
+		Expect(ds.Download().MarkCompleted(context.Background(), d.ID, "/music/x.mp3")).To(Succeed())
 
 		w := doRequest("DELETE", "/download/"+d.ID, nil, adminToken)
 		Expect(w.Code).To(Equal(http.StatusBadRequest))
 	})
 
 	It("retries a failed job, but not a completed one", func() {
-		repo := ds.Download(context.Background())
+		repo := ds.Download()
+		ctx := context.Background()
 		failed := &model.Download{Tool: model.DownloadToolYtDlp, SourceURL: "https://example.com/f", LibraryID: 1}
-		Expect(repo.Enqueue(failed)).To(Succeed())
-		Expect(repo.MarkFailed(failed.ID, "boom")).To(Succeed())
+		Expect(repo.Enqueue(ctx, failed)).To(Succeed())
+		Expect(repo.MarkFailed(ctx, failed.ID, "boom")).To(Succeed())
 		done := &model.Download{Tool: model.DownloadToolYtDlp, SourceURL: "https://example.com/d", LibraryID: 1}
-		Expect(repo.Enqueue(done)).To(Succeed())
-		Expect(repo.MarkCompleted(done.ID, "/music/d.mp3")).To(Succeed())
+		Expect(repo.Enqueue(ctx, done)).To(Succeed())
+		Expect(repo.MarkCompleted(ctx, done.ID, "/music/d.mp3")).To(Succeed())
 
 		Expect(doRequest("POST", "/download/"+failed.ID+"/retry", nil, adminToken).Code).To(Equal(http.StatusNoContent))
-		got, _ := repo.Get(failed.ID)
+		got, _ := repo.Get(ctx, failed.ID)
 		Expect(got.Status).To(Equal(model.DownloadStatusQueued))
 		Expect(got.Error).To(BeEmpty())
 
@@ -183,19 +185,20 @@ var _ = Describe("Downloader API", func() {
 	})
 
 	It("clears finished jobs but keeps queued ones", func() {
-		repo := ds.Download(context.Background())
+		repo := ds.Download()
+		ctx := context.Background()
 		queued := &model.Download{Tool: model.DownloadToolYtDlp, SourceURL: "https://example.com/q", LibraryID: 1}
-		Expect(repo.Enqueue(queued)).To(Succeed())
+		Expect(repo.Enqueue(ctx, queued)).To(Succeed())
 		done := &model.Download{Tool: model.DownloadToolYtDlp, SourceURL: "https://example.com/d", LibraryID: 1}
-		Expect(repo.Enqueue(done)).To(Succeed())
-		Expect(repo.MarkCompleted(done.ID, "/music/d.mp3")).To(Succeed())
+		Expect(repo.Enqueue(ctx, done)).To(Succeed())
+		Expect(repo.MarkCompleted(ctx, done.ID, "/music/d.mp3")).To(Succeed())
 
 		w := doRequest("DELETE", "/download", nil, adminToken)
 		Expect(w.Code).To(Equal(http.StatusOK))
 		Expect(w.Body.String()).To(ContainSubstring(`"deleted":1`))
-		_, err := repo.Get(done.ID)
+		_, err := repo.Get(ctx, done.ID)
 		Expect(err).To(MatchError(model.ErrNotFound))
-		_, err = repo.Get(queued.ID)
+		_, err = repo.Get(ctx, queued.ID)
 		Expect(err).ToNot(HaveOccurred())
 	})
 

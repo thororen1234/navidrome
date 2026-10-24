@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"slices"
 	"sync"
 	"time"
@@ -20,7 +21,7 @@ func CreateMockDownloadRepo() *MockDownloadRepo {
 	return &MockDownloadRepo{Data: map[string]model.Download{}}
 }
 
-func (m *MockDownloadRepo) Enqueue(d *model.Download) error {
+func (m *MockDownloadRepo) Enqueue(_ context.Context, d *model.Download) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.Err != nil {
@@ -37,7 +38,7 @@ func (m *MockDownloadRepo) Enqueue(d *model.Download) error {
 	return nil
 }
 
-func (m *MockDownloadRepo) Get(downloadID string) (*model.Download, error) {
+func (m *MockDownloadRepo) Get(_ context.Context, downloadID string) (*model.Download, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.Err != nil {
@@ -49,7 +50,7 @@ func (m *MockDownloadRepo) Get(downloadID string) (*model.Download, error) {
 	return nil, model.ErrNotFound
 }
 
-func (m *MockDownloadRepo) GetAll(...model.QueryOptions) (model.Downloads, error) {
+func (m *MockDownloadRepo) GetAll(_ context.Context, _ ...model.QueryOptions) (model.Downloads, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.Err != nil {
@@ -63,7 +64,7 @@ func (m *MockDownloadRepo) GetAll(...model.QueryOptions) (model.Downloads, error
 	return res, nil
 }
 
-func (m *MockDownloadRepo) ClaimNext() (*model.Download, error) {
+func (m *MockDownloadRepo) ClaimNext(_ context.Context) (*model.Download, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.Err != nil {
@@ -86,7 +87,7 @@ func (m *MockDownloadRepo) ClaimNext() (*model.Download, error) {
 	return next, nil
 }
 
-func (m *MockDownloadRepo) UpdateProgress(downloadID string, progress float64, statusMessage string) error {
+func (m *MockDownloadRepo) UpdateProgress(_ context.Context, downloadID string, progress float64, statusMessage string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.Err != nil {
@@ -102,7 +103,7 @@ func (m *MockDownloadRepo) UpdateProgress(downloadID string, progress float64, s
 	return nil
 }
 
-func (m *MockDownloadRepo) MarkCompleted(downloadID string, targetPath string) error {
+func (m *MockDownloadRepo) MarkCompleted(_ context.Context, downloadID string, targetPath string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.Err != nil {
@@ -120,7 +121,7 @@ func (m *MockDownloadRepo) MarkCompleted(downloadID string, targetPath string) e
 	return nil
 }
 
-func (m *MockDownloadRepo) MarkFailed(downloadID string, errMsg string) error {
+func (m *MockDownloadRepo) MarkFailed(_ context.Context, downloadID string, errMsg string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.Err != nil {
@@ -136,7 +137,7 @@ func (m *MockDownloadRepo) MarkFailed(downloadID string, errMsg string) error {
 	return nil
 }
 
-func (m *MockDownloadRepo) MarkCanceled(downloadID string) error {
+func (m *MockDownloadRepo) MarkCanceled(_ context.Context, downloadID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.Err != nil {
@@ -150,7 +151,7 @@ func (m *MockDownloadRepo) MarkCanceled(downloadID string) error {
 	return nil
 }
 
-func (m *MockDownloadRepo) CancelQueued(downloadID string) (bool, error) {
+func (m *MockDownloadRepo) CancelQueued(_ context.Context, downloadID string) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.Err != nil {
@@ -166,7 +167,7 @@ func (m *MockDownloadRepo) CancelQueued(downloadID string) (bool, error) {
 	return true, nil
 }
 
-func (m *MockDownloadRepo) Requeue(downloadID string) (bool, error) {
+func (m *MockDownloadRepo) Requeue(_ context.Context, downloadID string) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.Err != nil {
@@ -190,7 +191,7 @@ func (m *MockDownloadRepo) Requeue(downloadID string) (bool, error) {
 	return true, nil
 }
 
-func (m *MockDownloadRepo) FailInterrupted(errMsg string) (int64, error) {
+func (m *MockDownloadRepo) FailInterrupted(_ context.Context, errMsg string) (int64, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.Err != nil {
@@ -209,7 +210,7 @@ func (m *MockDownloadRepo) FailInterrupted(errMsg string) (int64, error) {
 	return n, nil
 }
 
-func (m *MockDownloadRepo) DeleteFinished() (int64, error) {
+func (m *MockDownloadRepo) DeleteFinished(_ context.Context) (int64, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.Err != nil {
@@ -225,7 +226,7 @@ func (m *MockDownloadRepo) DeleteFinished() (int64, error) {
 	return n, nil
 }
 
-func (m *MockDownloadRepo) CountByStatus(status model.DownloadStatus) (int64, error) {
+func (m *MockDownloadRepo) CountByStatus(_ context.Context, status model.DownloadStatus) (int64, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.Err != nil {

@@ -37,7 +37,7 @@ func sanitizeFilename(name string) string {
 // resolveTargetDir returns the absolute directory downloaded files for this job should be
 // written into: <library path>/Downloads/<tool>.
 func resolveTargetDir(ctx context.Context, ds model.DataStore, d *model.Download) (string, error) {
-	libPath, err := ds.Library(ctx).GetPath(d.LibraryID)
+	libPath, err := ds.Library().GetPath(ctx, d.LibraryID)
 	if err != nil {
 		return "", fmt.Errorf("resolving library %d path: %w", d.LibraryID, err)
 	}

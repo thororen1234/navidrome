@@ -107,7 +107,7 @@ var _ = Describe("Worker", func() {
 
 	newDownload := func(tool model.DownloadTool, kind string) model.Download {
 		d := model.Download{Tool: tool, TidalKind: kind, LibraryID: 1, RequestedBy: "admin"}
-		Expect(ds.Download(ctx).Enqueue(&d)).To(Succeed())
+		Expect(ds.Download().Enqueue(ctx, &d)).To(Succeed())
 		return d
 	}
 
@@ -117,7 +117,7 @@ var _ = Describe("Worker", func() {
 
 		w.process(ctx, d)
 
-		got, err := ds.Download(ctx).Get(d.ID)
+		got, err := ds.Download().Get(ctx, d.ID)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(got.Status).To(Equal(model.DownloadStatusCompleted))
 		Expect(got.TargetPath).To(HavePrefix(filepath.Join(libPath, "Downloads", "tidal")))
@@ -149,7 +149,7 @@ var _ = Describe("Worker", func() {
 
 		w.process(ctx, d)
 
-		got, err := ds.Download(ctx).Get(d.ID)
+		got, err := ds.Download().Get(ctx, d.ID)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(got.Status).To(Equal(model.DownloadStatusCompleted))
 
@@ -166,7 +166,7 @@ var _ = Describe("Worker", func() {
 		w.process(ctx, d)
 
 		albumDir := filepath.Join(libPath, "Downloads", "tidal", "Artist - Album")
-		got, err := ds.Download(ctx).Get(d.ID)
+		got, err := ds.Download().Get(ctx, d.ID)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(got.Status).To(Equal(model.DownloadStatusCompleted))
 		Expect(got.TargetPath).To(Equal(albumDir))
@@ -198,7 +198,7 @@ var _ = Describe("Worker", func() {
 
 		w.process(ctx, d)
 
-		got, err := ds.Download(ctx).Get(d.ID)
+		got, err := ds.Download().Get(ctx, d.ID)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(got.Status).To(Equal(model.DownloadStatusError))
 		Expect(got.Error).To(ContainSubstring("boom"))
@@ -211,7 +211,7 @@ var _ = Describe("Worker", func() {
 
 		w.process(ctx, d)
 
-		got, err := ds.Download(ctx).Get(d.ID)
+		got, err := ds.Download().Get(ctx, d.ID)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(got.Status).To(Equal(model.DownloadStatusError))
 		Expect(got.Error).To(ContainSubstring("not configured"))
@@ -233,7 +233,7 @@ var _ = Describe("Worker", func() {
 		Expect(reg.cancel(d.ID)).To(BeTrue(), "job should still be registered as running")
 		Eventually(done).Should(BeClosed())
 
-		got, err := ds.Download(ctx).Get(d.ID)
+		got, err := ds.Download().Get(ctx, d.ID)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(got.Status).To(Equal(model.DownloadStatusCanceled))
 
@@ -257,7 +257,7 @@ var _ = Describe("Worker", func() {
 
 		w.process(ctx, d)
 
-		got, err := ds.Download(ctx).Get(d.ID)
+		got, err := ds.Download().Get(ctx, d.ID)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(got.Status).To(Equal(model.DownloadStatusError))
 		Expect(got.Error).To(ContainSubstring("timed out"))
@@ -280,7 +280,7 @@ var _ = Describe("Worker", func() {
 		reg.cancelClaimed(d.ID) // before process() registers it
 		w.process(ctx, d)
 
-		got, err := ds.Download(ctx).Get(d.ID)
+		got, err := ds.Download().Get(ctx, d.ID)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(got.Status).To(Equal(model.DownloadStatusCanceled))
 	})
@@ -301,17 +301,17 @@ var _ = Describe("Worker", func() {
 
 		It("fails jobs left downloading by a previous run before starting", func() {
 			d := newDownload(model.DownloadToolTidal, "track")
-			_, err := ds.Download(ctx).ClaimNext() // simulate a crash mid-download
+			_, err := ds.Download().ClaimNext(ctx) // simulate a crash mid-download
 			Expect(err).ToNot(HaveOccurred())
 
 			stop := run(NewWorker(ds, scanner, broker, &fakeTidal{content: []byte("x"), name: "x.flac"}, reg))
 			defer stop()
 
 			Eventually(func() model.DownloadStatus {
-				got, _ := ds.Download(ctx).Get(d.ID)
+				got, _ := ds.Download().Get(ctx, d.ID)
 				return got.Status
 			}).Should(Equal(model.DownloadStatusError))
-			got, _ := ds.Download(ctx).Get(d.ID)
+			got, _ := ds.Download().Get(ctx, d.ID)
 			Expect(got.Error).To(ContainSubstring("interrupted"))
 		})
 
@@ -324,7 +324,7 @@ var _ = Describe("Worker", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(func() model.DownloadStatus {
-				got, _ := ds.Download(ctx).Get(d.ID)
+				got, _ := ds.Download().Get(ctx, d.ID)
 				return got.Status
 			}, 2*time.Second).Should(Equal(model.DownloadStatusCompleted))
 		})
@@ -348,13 +348,13 @@ var _ = Describe("Worker", func() {
 				d, err := svc.Submit(ctx, SubmitRequest{Tool: model.DownloadToolTidal, TidalID: "t", TidalKind: "track", LibraryID: 1})
 				Expect(err).ToNot(HaveOccurred())
 				Eventually(func() model.DownloadStatus {
-					got, _ := ds.Download(ctx).Get(d.ID)
+					got, _ := ds.Download().Get(ctx, d.ID)
 					return got.Status
 				}, 2*time.Second).Should(Equal(model.DownloadStatusCompleted))
 			}
 			close(slow.block)
 			Eventually(func() model.DownloadStatus {
-				got, _ := ds.Download(ctx).Get(slowJob.ID)
+				got, _ := ds.Download().Get(ctx, slowJob.ID)
 				return got.Status
 			}, 2*time.Second).ShouldNot(Equal(model.DownloadStatusDownloading))
 		})
@@ -363,11 +363,11 @@ var _ = Describe("Worker", func() {
 	It("fails when the target library no longer exists", func() {
 		w := NewWorker(ds, scanner, broker, &fakeTidal{content: []byte("x"), name: "x.flac"}, reg)
 		d := model.Download{Tool: model.DownloadToolTidal, TidalKind: "track", LibraryID: 99, RequestedBy: "admin"}
-		Expect(ds.Download(ctx).Enqueue(&d)).To(Succeed())
+		Expect(ds.Download().Enqueue(ctx, &d)).To(Succeed())
 
 		w.process(ctx, d)
 
-		got, err := ds.Download(ctx).Get(d.ID)
+		got, err := ds.Download().Get(ctx, d.ID)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(got.Status).To(Equal(model.DownloadStatusError))
 	})

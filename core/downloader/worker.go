@@ -56,7 +56,7 @@ func (w *Worker) Run(ctx context.Context) error {
 	ctx = auth.WithAdminUser(ctx, w.ds)
 	// Nothing can still be running at startup: anything left "downloading" was cut off by a crash
 	// or restart, and would otherwise sit there forever, uncancelable and never retried.
-	if n, err := w.ds.Download(ctx).FailInterrupted("interrupted by a server restart"); err != nil {
+	if n, err := w.ds.Download().FailInterrupted(ctx, "interrupted by a server restart"); err != nil {
 		log.Warn(ctx, "Downloader: could not reset interrupted jobs", err)
 	} else if n > 0 {
 		log.Warn(ctx, "Downloader: marked jobs interrupted by a restart as failed", "count", n)
@@ -73,7 +73,7 @@ func (w *Worker) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		}
-		item, err := w.ds.Download(ctx).ClaimNext()
+		item, err := w.ds.Download().ClaimNext(ctx)
 		if err != nil {
 			<-sem
 			if !errors.Is(err, model.ErrNotFound) && ctx.Err() == nil {
@@ -158,7 +158,7 @@ func (w *Worker) process(ctx context.Context, item model.Download) {
 	if moved > 1 {
 		result = filepath.Dir(lastPath)
 	}
-	if err := w.ds.Download(ctx).MarkCompleted(item.ID, result); err != nil {
+	if err := w.ds.Download().MarkCompleted(ctx, item.ID, result); err != nil {
 		log.Warn(ctx, "Downloader: could not mark job completed", "id", item.ID, err)
 	}
 	log.Info(ctx, "Downloader: job completed", "id", item.ID, "files", moved, "path", result)
@@ -180,7 +180,7 @@ func (w *Worker) progressReporter(ctx context.Context, id string) func(pct float
 		}
 		lastPct, lastAt = pct, time.Now()
 		mu.Unlock()
-		if e := w.ds.Download(ctx).UpdateProgress(id, pct, msg); e != nil {
+		if e := w.ds.Download().UpdateProgress(ctx, id, pct, msg); e != nil {
 			log.Warn(ctx, "Downloader: could not update job progress", "id", id, e)
 		}
 		w.broadcast(ctx, id, model.DownloadStatusDownloading, pct, msg, "")
@@ -190,7 +190,7 @@ func (w *Worker) progressReporter(ctx context.Context, id string) func(pct float
 func (w *Worker) fail(ctx context.Context, id string, err error) {
 	log.Error(ctx, "Downloader: job failed", "id", id, err)
 	msg := err.Error()
-	if e := w.ds.Download(ctx).MarkFailed(id, msg); e != nil {
+	if e := w.ds.Download().MarkFailed(ctx, id, msg); e != nil {
 		log.Warn(ctx, "Downloader: could not mark job failed", "id", id, e)
 	}
 	w.broadcast(ctx, id, model.DownloadStatusError, 0, "", msg)
@@ -198,7 +198,7 @@ func (w *Worker) fail(ctx context.Context, id string, err error) {
 
 func (w *Worker) markCanceled(ctx context.Context, id string) {
 	log.Info(ctx, "Downloader: job canceled", "id", id)
-	if e := w.ds.Download(ctx).MarkCanceled(id); e != nil {
+	if e := w.ds.Download().MarkCanceled(ctx, id); e != nil {
 		log.Warn(ctx, "Downloader: could not mark job canceled", "id", id, e)
 	}
 	w.broadcast(ctx, id, model.DownloadStatusCanceled, 0, "", "")
@@ -213,7 +213,7 @@ func (w *Worker) broadcast(ctx context.Context, id string, status model.Download
 // triggerRescan scans just the folder the job wrote into, so the new tracks show up without
 // waiting for (or paying the cost of) a full library scan.
 func (w *Worker) triggerRescan(ctx context.Context, libraryID int, absFolderPath string) {
-	libPath, err := w.ds.Library(ctx).GetPath(libraryID)
+	libPath, err := w.ds.Library().GetPath(ctx, libraryID)
 	if err != nil {
 		log.Warn(ctx, "Downloader: could not resolve library path for rescan", "libraryId", libraryID, err)
 		return
