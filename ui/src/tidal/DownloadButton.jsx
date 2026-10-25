@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNotify, usePermissions, useTranslate } from 'react-admin'
 import {
+  Button,
   IconButton,
   Menu,
   MenuItem,
@@ -16,7 +17,14 @@ import { useLibraries } from '../downloader/useLibraries'
 // DownloadButton enqueues a "download to server" job for a Tidal track/album into the same
 // queue the Downloader tab shows. Only rendered for admins, since it writes to the filesystem,
 // and only when the server accepts these jobs (Tidal.AllowDownload with the Downloader enabled).
-const DownloadButton = ({ tidalId, tidalKind }) => {
+// With showLabel it renders as a text button (album header action bar); otherwise as an icon,
+// with className letting cover overlays recolor it.
+const DownloadButton = ({
+  tidalId,
+  tidalKind,
+  className,
+  showLabel = false,
+}) => {
   const { permissions } = usePermissions()
   const translate = useTranslate()
   const notify = useNotify()
@@ -60,20 +68,34 @@ const DownloadButton = ({ tidalId, tidalKind }) => {
   }
 
   if (submitting) {
-    return <CircularProgress size={20} />
+    return <CircularProgress size={20} className={className} />
   }
 
+  const label = translate('resources.tidal.actions.downloadToServer')
   return (
     <>
-      <Tooltip title={translate('resources.tidal.actions.downloadToServer')}>
-        <IconButton
+      {showLabel ? (
+        <Button
           size="small"
+          className={className}
+          startIcon={<CloudDownloadIcon />}
           onClick={handleClick}
           disabled={!libraries.length}
         >
-          <CloudDownloadIcon fontSize="small" />
-        </IconButton>
-      </Tooltip>
+          {label}
+        </Button>
+      ) : (
+        <Tooltip title={label}>
+          <IconButton
+            size="small"
+            className={className}
+            onClick={handleClick}
+            disabled={!libraries.length}
+          >
+            <CloudDownloadIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )}
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}

@@ -1,436 +1,309 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useDispatch } from 'react-redux'
+import { useHistory, useLocation } from 'react-router-dom'
 import { Title, useNotify, useTranslate } from 'react-admin'
 import {
-  Avatar,
   Box,
   Button,
-  Card,
-  CardContent,
-  TextField,
-  InputAdornment,
-  IconButton,
-  Typography,
-  List,
-  ListItem,
-  ListItemAvatar,
-  ListItemText,
-  ListItemSecondaryAction,
-  Divider,
   CircularProgress,
+  IconButton,
+  InputAdornment,
+  TextField,
+  Typography,
 } from '@material-ui/core'
 import SearchIcon from '@material-ui/icons/Search'
-import PlayArrowIcon from '@material-ui/icons/PlayArrow'
-import PersonIcon from '@material-ui/icons/Person'
-import MusicNoteIcon from '@material-ui/icons/MusicNote'
-import AlbumIcon from '@material-ui/icons/Album'
+import ArrowBackIcon from '@material-ui/icons/ArrowBack'
 import { httpClient } from '../dataProvider'
-import { setTrack, playTracks } from '../actions'
-import DownloadButton from './DownloadButton'
-import { tidalArtistImageUrl, tidalCoverArtUrl, tidalStreamUrl } from './urls'
+import { playTrack, playTrackList } from './playback'
+import {
+  AlbumGrid,
+  AlbumHeader,
+  ArtistGrid,
+  ArtistHeader,
+  SectionTitle,
+  TrackTable,
+} from './TidalViews'
 
-const secondsToTime = (seconds) => {
-  if (!seconds) return ''
-  const m = Math.floor(seconds / 60)
-  const s = Math.round(seconds % 60)
-  return `${m}:${s.toString().padStart(2, '0')}`
+// Tidal returns every single and EP as an "album"; splitting by track count keeps an artist's
+// real albums from drowning in dozens of one-track releases. An unknown count counts as an
+// album.
+const MIN_ALBUM_TRACKS = 7
+const isFullAlbum = (album) =>
+  !album.songCount || album.songCount >= MIN_ALBUM_TRACKS
+const byYearDesc = (a, b) => (b.year || 0) - (a.year || 0)
+
+// The current view lives in the URL (?q=, ?artist=, ?album=), so browser Back/Forward and
+// reloads work like the rest of the app, instead of a page-local navigation stack.
+const useTidalLocation = () => {
+  const location = useLocation()
+  const history = useHistory()
+  const params = new URLSearchParams(location.search)
+  const go = (next) => {
+    const p = new URLSearchParams()
+    Object.entries(next).forEach(([k, v]) => v && p.set(k, v))
+    history.push({ pathname: location.pathname, search: `?${p}` })
+  }
+  return {
+    q: params.get('q') || '',
+    artistId: params.get('artist'),
+    albumId: params.get('album'),
+    go,
+    back: () => history.goBack(),
+  }
 }
 
-const coverArtUrl = tidalCoverArtUrl
-
-// Queue keys must not look like integers: playTracks keys its data by id, and JS orders
-// integer-like object keys numerically - so raw (numeric) Tidal ids would play an album sorted
-// by track id instead of in track order.
-const queueKey = (id) => `tidal:${id}`
-
-// toQueueItem shapes a Tidal track into the same "external stream" item Navidrome's radio
-// stations use (see radio/helper.jsx): isRadio: true routes it through the player's queue
-// without Navidrome's own subsonic stream resolution or playback-reporting, both of which
-// assume a local media file id. tidalId lets the player reducer rebuild streamUrl with a fresh
-// token when a persisted queue is restored.
-const toQueueItem = (track) => ({
-  id: queueKey(track.id),
-  tidalId: track.id,
-  name: track.title,
-  title: track.title,
-  artist: track.artist,
-  album: track.album,
-  duration: track.duration,
-  streamUrl: tidalStreamUrl(track.id),
-  cover: coverArtUrl(track.coverArt, 300),
-  isRadio: true,
-})
-
-const playTrackList = (dispatch, tracks, selectedId) => {
-  if (!tracks.length) return
-  const data = {}
-  tracks.forEach((t) => {
-    data[queueKey(t.id)] = toQueueItem(t)
-  })
-  dispatch(
-    playTracks(
-      data,
-      tracks.map((t) => queueKey(t.id)),
-      selectedId && queueKey(selectedId),
-    ),
-  )
+// useTidalFetch loads url whenever it changes. data is only returned for the current url: a
+// late response for a page the user has left is dropped, and the previous view's data never
+// renders under the new view while it loads.
+const useTidalFetch = (url) => {
+  const notify = useNotify()
+  // Read through a ref so the effect only re-runs for a new url, never for a new notify.
+  const notifyRef = useRef(notify)
+  notifyRef.current = notify
+  const [state, setState] = useState({ url: null, data: null, failed: false })
+  useEffect(() => {
+    if (!url) return undefined
+    let active = true
+    httpClient(url)
+      .then(({ json }) => {
+        if (active) setState({ url, data: json, failed: false })
+      })
+      .catch((error) => {
+        if (!active) return
+        notifyRef.current(error.message || 'ra.page.error', {
+          type: 'warning',
+        })
+        setState({ url, data: null, failed: true })
+      })
+    return () => {
+      active = false
+    }
+  }, [url])
+  const current = state.url === url
+  return {
+    loading: !!url && !current,
+    data: current ? state.data : null,
+    failed: current && state.failed,
+  }
 }
 
-const TrackRow = ({ track, onPlay }) => (
-  <ListItem divider>
-    <ListItemAvatar>
-      <Avatar variant="square" src={coverArtUrl(track.coverArt, 80)}>
-        <MusicNoteIcon />
-      </Avatar>
-    </ListItemAvatar>
-    <ListItemText
-      primary={track.title}
-      secondary={[track.artist, track.album, secondsToTime(track.duration)]
-        .filter(Boolean)
-        .join(' · ')}
-    />
-    <ListItemSecondaryAction>
-      <IconButton size="small" onClick={() => onPlay(track)}>
-        <PlayArrowIcon fontSize="small" />
-      </IconButton>
-      <DownloadButton tidalId={track.id} tidalKind="track" />
-    </ListItemSecondaryAction>
-  </ListItem>
-)
-
-const AlbumRow = ({ album, onSelect, onPlay }) => {
+const SearchResults = ({ results, onOpenArtist, onOpenAlbum, onPlayAlbum }) => {
   const translate = useTranslate()
-  return (
-    <ListItem button divider onClick={() => onSelect(album)}>
-      <ListItemAvatar>
-        <Avatar variant="square" src={coverArtUrl(album.coverArt, 80)}>
-          <AlbumIcon />
-        </Avatar>
-      </ListItemAvatar>
-      <ListItemText
-        primary={album.name}
-        secondary={[
-          album.artist,
-          album.year,
-          album.songCount &&
-            translate('resources.tidal.messages.trackCount', {
-              smart_count: album.songCount,
-            }),
-        ]
-          .filter(Boolean)
-          .join(' · ')}
-      />
-      <ListItemSecondaryAction>
-        <IconButton
-          size="small"
-          onClick={(e) => {
-            e.stopPropagation()
-            onPlay(album)
-          }}
-        >
-          <PlayArrowIcon fontSize="small" />
-        </IconButton>
-        <DownloadButton tidalId={album.id} tidalKind="album" />
-      </ListItemSecondaryAction>
-    </ListItem>
-  )
-}
-
-const ArtistRow = ({ artist, onSelect }) => {
-  const translate = useTranslate()
-  return (
-    <ListItem button divider onClick={() => onSelect(artist)}>
-      <ListItemAvatar>
-        <Avatar src={tidalArtistImageUrl(artist, 80)} alt={artist.name}>
-          <PersonIcon />
-        </Avatar>
-      </ListItemAvatar>
-      <ListItemText
-        primary={artist.name}
-        secondary={
-          artist.albumCount
-            ? translate('resources.tidal.messages.albumCount', {
-                smart_count: artist.albumCount,
-              })
-            : undefined
-        }
-      />
-    </ListItem>
-  )
-}
-
-const BackButton = ({ onBack }) => {
-  const translate = useTranslate()
-  return (
-    <Box mt={1}>
-      <Button size="small" onClick={onBack}>
-        {translate('ra.action.back')}
-      </Button>
-    </Box>
-  )
-}
-
-const AlbumDetail = ({ album, onPlayTrack, onPlayAll, onBack }) => {
-  const translate = useTranslate()
-  return (
-    <Box mt={2}>
-      <Box
-        display="flex"
-        alignItems="center"
-        justifyContent="space-between"
-        flexWrap="wrap"
-      >
-        <Box display="flex" alignItems="center">
-          <Avatar
-            variant="square"
-            src={coverArtUrl(album.coverArt, 160)}
-            style={{ width: 80, height: 80, marginRight: 16 }}
-          >
-            <AlbumIcon />
-          </Avatar>
-          <Box>
-            <Typography variant="h6">{album.name}</Typography>
-            <Typography variant="body2" color="textSecondary" gutterBottom>
-              {[album.artist, album.year].filter(Boolean).join(' · ')}
-            </Typography>
-          </Box>
-        </Box>
-        <Box display="flex" alignItems="center">
-          <Button
-            size="small"
-            startIcon={<PlayArrowIcon />}
-            onClick={() => onPlayAll(album)}
-          >
-            {translate('resources.tidal.actions.playAll')}
-          </Button>
-          <DownloadButton tidalId={album.id} tidalKind="album" />
-        </Box>
-      </Box>
-      <List dense>
-        {(album.song || []).map((track) => (
-          <TrackRow
-            key={track.id}
-            track={track}
-            onPlay={(t) => onPlayTrack(album, t)}
-          />
-        ))}
-      </List>
-      <BackButton onBack={onBack} />
-    </Box>
-  )
-}
-
-const ArtistDetail = ({ artist, onSelectAlbum, onPlayAlbum, onBack }) => {
-  const translate = useTranslate()
-  const albums = artist.album || []
-  return (
-    <Box mt={2}>
-      <Box display="flex" alignItems="center" mb={1}>
-        <Avatar
-          src={
-            tidalArtistImageUrl(artist, 160) ||
-            coverArtUrl(albums[0]?.coverArt, 160)
-          }
-          alt={artist.name}
-          style={{ width: 56, height: 56, marginRight: 12 }}
-        >
-          <PersonIcon />
-        </Avatar>
-        <Typography variant="h6">{artist.name}</Typography>
-      </Box>
-      {albums.length > 0 ? (
-        <List dense>
-          {albums.map((al) => (
-            <AlbumRow
-              key={al.id}
-              album={al}
-              onSelect={onSelectAlbum}
-              onPlay={onPlayAlbum}
-            />
-          ))}
-        </List>
-      ) : (
+  const dispatch = useDispatch()
+  const artists = results.artist || []
+  const albums = results.album || []
+  const songs = results.song || []
+  if (!artists.length && !albums.length && !songs.length) {
+    return (
+      <Box mt={3}>
         <Typography variant="body2" color="textSecondary">
-          {translate('resources.tidal.messages.noAlbums')}
+          {translate('ra.navigation.no_results')}
         </Typography>
+      </Box>
+    )
+  }
+  return (
+    <>
+      {artists.length > 0 && (
+        <>
+          <SectionTitle>
+            {translate('resources.tidal.sections.artists')}
+          </SectionTitle>
+          <ArtistGrid artists={artists} onOpen={onOpenArtist} />
+        </>
       )}
-      <BackButton onBack={onBack} />
-    </Box>
+      {albums.length > 0 && (
+        <>
+          <SectionTitle>
+            {translate('resources.tidal.sections.albums')}
+          </SectionTitle>
+          <AlbumGrid
+            albums={albums}
+            showArtist
+            onOpen={onOpenAlbum}
+            onPlay={onPlayAlbum}
+          />
+        </>
+      )}
+      {songs.length > 0 && (
+        <>
+          <SectionTitle>
+            {translate('resources.tidal.sections.songs')}
+          </SectionTitle>
+          <TrackTable
+            tracks={songs}
+            showArtist
+            showAlbum
+            onPlay={(t) => playTrack(dispatch, t)}
+          />
+        </>
+      )}
+    </>
   )
 }
 
-const Section = ({ title, children }) => (
-  <>
-    <Typography variant="subtitle1">{title}</Typography>
-    <List dense>{children}</List>
-    <Divider />
-  </>
-)
+const ArtistView = ({ artist, onOpenAlbum, onPlayAlbum }) => {
+  const translate = useTranslate()
+  const all = [...(artist.album || [])].sort(byYearDesc)
+  const albums = all.filter(isFullAlbum)
+  const singles = all.filter((a) => !isFullAlbum(a))
+  return (
+    <>
+      <ArtistHeader artist={artist} albums={all} />
+      {albums.length > 0 && (
+        <>
+          <SectionTitle>
+            {translate('resources.tidal.sections.albums')}
+          </SectionTitle>
+          <AlbumGrid
+            albums={albums}
+            onOpen={onOpenAlbum}
+            onPlay={onPlayAlbum}
+          />
+        </>
+      )}
+      {singles.length > 0 && (
+        <>
+          <SectionTitle>
+            {translate('resources.tidal.sections.singles')}
+          </SectionTitle>
+          <AlbumGrid
+            albums={singles}
+            onOpen={onOpenAlbum}
+            onPlay={onPlayAlbum}
+          />
+        </>
+      )}
+      {!all.length && (
+        <Box mt={3}>
+          <Typography variant="body2" color="textSecondary">
+            {translate('resources.tidal.messages.noAlbums')}
+          </Typography>
+        </Box>
+      )}
+    </>
+  )
+}
+
+const AlbumView = ({ album, onOpenArtist }) => {
+  const dispatch = useDispatch()
+  const songs = album.song || []
+  return (
+    <>
+      <AlbumHeader album={album} onOpenArtist={onOpenArtist} />
+      <Box mt={2}>
+        <TrackTable
+          tracks={songs}
+          showArtist={songs.some((s) => s.artist && s.artist !== album.artist)}
+          onPlay={(t) => playTrackList(dispatch, songs, t.id)}
+        />
+      </Box>
+    </>
+  )
+}
 
 const TidalPage = () => {
   const translate = useTranslate()
   const notify = useNotify()
   const dispatch = useDispatch()
-  const [query, setQuery] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [results, setResults] = useState(null)
-  // Navigation stack of { type: 'artist' | 'album', data }, so "Back" from an album opened
-  // through an artist returns to that artist rather than to the search results.
-  const [nav, setNav] = useState([])
-  const current = nav[nav.length - 1]
-  // Only the latest request may update the page: a slow response for an earlier click must not
-  // replace (or push on top of) what the user navigated to since.
-  const requestSeq = useRef(0)
+  const { q, artistId, albumId, go, back } = useTidalLocation()
+  const [query, setQuery] = useState(q)
+  useEffect(() => setQuery(q), [q])
 
-  const onError = (error) =>
-    notify(error.message || 'ra.page.error', { type: 'warning' })
-
-  const load = (url, onLoaded) => {
-    const seq = ++requestSeq.current
-    setLoading(true)
-    return httpClient(url)
-      .then(({ json }) => {
-        if (seq === requestSeq.current) onLoaded(json)
-      })
-      .catch((error) => {
-        if (seq === requestSeq.current) onError(error)
-      })
-      .finally(() => {
-        if (seq === requestSeq.current) setLoading(false)
-      })
-  }
+  const view = albumId ? 'album' : artistId ? 'artist' : q ? 'search' : null
+  const url =
+    view === 'album'
+      ? `/api/tidal/album/${encodeURIComponent(albumId)}`
+      : view === 'artist'
+        ? `/api/tidal/artist/${encodeURIComponent(artistId)}`
+        : view === 'search'
+          ? `/api/tidal/search?q=${encodeURIComponent(q)}`
+          : null
+  const { loading, data, failed } = useTidalFetch(url)
 
   const runSearch = () => {
-    if (!query.trim()) return
-    setNav([])
-    load(`/api/tidal/search?q=${encodeURIComponent(query.trim())}`, setResults)
+    const trimmed = query.trim()
+    if (trimmed) go({ q: trimmed })
   }
+  // Keep the search in the URL while browsing, so the search box still shows it.
+  const openArtist = (artist) => go({ q, artist: artist.id })
+  const openAlbum = (album) => go({ q, album: album.id })
 
-  const openArtist = (artist) =>
-    load(`/api/tidal/artist/${encodeURIComponent(artist.id)}`, (json) =>
-      setNav((n) => [...n, { type: 'artist', data: json }]),
-    )
-
-  const openAlbum = (album) =>
-    load(`/api/tidal/album/${encodeURIComponent(album.id)}`, (json) =>
-      setNav((n) => [...n, { type: 'album', data: json }]),
-    )
-
-  const playTrack = (track) => dispatch(setTrack(toQueueItem(track)))
-
-  // Playing a track from an album's track list queues the whole album from that track on, like
-  // the regular album view does.
-  const playAlbumFrom = (album, track) =>
-    playTrackList(dispatch, album.song || [], track.id)
-
-  // Search/artist album rows carry no track list, so fetch it; the album detail view already
-  // has one.
-  const playAlbum = (album) => {
-    if (album.song?.length) {
-      playTrackList(dispatch, album.song)
-      return
-    }
+  // Album tiles in grids carry no track list, so fetch it before playing.
+  const playAlbum = (album) =>
     httpClient(`/api/tidal/album/${encodeURIComponent(album.id)}`)
       .then(({ json }) => playTrackList(dispatch, json.song || []))
-      .catch(onError)
-  }
-
-  const goBack = () => {
-    requestSeq.current++ // drop any in-flight navigation
-    setLoading(false)
-    setNav((n) => n.slice(0, -1))
-  }
+      .catch((error) =>
+        notify(error.message || 'ra.page.error', { type: 'warning' }),
+      )
 
   return (
-    <Box mt={2}>
+    <Box mt={2} mb={4}>
       <Title
         title={'Navidrome - ' + translate('menu.tidal', { _: 'Tidal Library' })}
       />
-      <Card>
-        <CardContent>
-          <TextField
-            fullWidth
-            variant="outlined"
-            placeholder={translate(
-              'resources.tidal.messages.searchPlaceholder',
-            )}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && runSearch()}
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton onClick={runSearch}>
-                    <SearchIcon />
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
-          />
+      <Box display="flex" alignItems="center" style={{ gap: 8 }}>
+        {(view === 'artist' || view === 'album') && (
+          <IconButton onClick={back} aria-label={translate('ra.action.back')}>
+            <ArrowBackIcon />
+          </IconButton>
+        )}
+        <TextField
+          fullWidth
+          variant="outlined"
+          size="small"
+          placeholder={translate('resources.tidal.messages.searchPlaceholder')}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && runSearch()}
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton size="small" onClick={runSearch}>
+                  <SearchIcon />
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+        />
+      </Box>
 
-          {loading && (
-            <Box mt={2} textAlign="center">
-              <CircularProgress size={24} />
-            </Box>
-          )}
+      {loading && (
+        <Box mt={4} textAlign="center">
+          <CircularProgress size={28} />
+        </Box>
+      )}
 
-          {!loading && current?.type === 'artist' && (
-            <ArtistDetail
-              artist={current.data}
-              onSelectAlbum={openAlbum}
+      {!loading && data && (
+        <Box mt={2}>
+          {view === 'search' && (
+            <SearchResults
+              results={data}
+              onOpenArtist={openArtist}
+              onOpenAlbum={openAlbum}
               onPlayAlbum={playAlbum}
-              onBack={goBack}
             />
           )}
-
-          {!loading && current?.type === 'album' && (
-            <AlbumDetail
-              album={current.data}
-              onPlayTrack={playAlbumFrom}
-              onPlayAll={playAlbum}
-              onBack={goBack}
+          {view === 'artist' && (
+            <ArtistView
+              artist={data}
+              onOpenAlbum={openAlbum}
+              onPlayAlbum={playAlbum}
             />
           )}
-
-          {!loading && !current && results && (
-            <Box mt={2}>
-              {results.artist?.length > 0 && (
-                <Section title={translate('resources.tidal.sections.artists')}>
-                  {results.artist.map((a) => (
-                    <ArtistRow key={a.id} artist={a} onSelect={openArtist} />
-                  ))}
-                </Section>
-              )}
-              {results.album?.length > 0 && (
-                <Section title={translate('resources.tidal.sections.albums')}>
-                  {results.album.map((al) => (
-                    <AlbumRow
-                      key={al.id}
-                      album={al}
-                      onSelect={openAlbum}
-                      onPlay={playAlbum}
-                    />
-                  ))}
-                </Section>
-              )}
-              {results.song?.length > 0 && (
-                <Section title={translate('resources.tidal.sections.songs')}>
-                  {results.song.map((s) => (
-                    <TrackRow key={s.id} track={s} onPlay={playTrack} />
-                  ))}
-                </Section>
-              )}
-              {!results.artist?.length &&
-                !results.album?.length &&
-                !results.song?.length && (
-                  <Typography variant="body2" color="textSecondary">
-                    {translate('ra.navigation.no_results')}
-                  </Typography>
-                )}
-            </Box>
+          {view === 'album' && (
+            <AlbumView album={data} onOpenArtist={openArtist} />
           )}
-        </CardContent>
-      </Card>
+        </Box>
+      )}
+
+      {failed && (
+        <Box mt={3}>
+          <Button size="small" onClick={back}>
+            {translate('ra.action.back')}
+          </Button>
+        </Box>
+      )}
     </Box>
   )
 }

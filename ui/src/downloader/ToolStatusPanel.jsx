@@ -9,6 +9,7 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  Box,
   Button,
   Chip,
   CircularProgress,
@@ -16,7 +17,10 @@ import {
 import { httpClient } from '../dataProvider'
 import { errorMessage } from './errorMessage'
 
-const ACTIONS = ['install', 'upgrade', 'repair']
+// Installing something already installed is a no-op, and upgrading or repairing a missing tool
+// can't work, so each row only offers the actions that apply to it.
+const actionsFor = (tool) =>
+  tool.installed ? ['upgrade', 'repair'] : ['install']
 
 const ToolStatusPanel = () => {
   const translate = useTranslate()
@@ -103,21 +107,27 @@ const ToolStatusPanel = () => {
                     />
                   )}
                 </TableCell>
-                <TableCell align="right">
+                <TableCell align="right" style={{ whiteSpace: 'nowrap' }}>
                   {busy ? (
                     <CircularProgress size={20} />
                   ) : (
-                    ACTIONS.map((action) => (
-                      <Button
-                        key={action}
-                        size="small"
-                        onClick={() => handleAction(t.tool, action)}
-                      >
-                        {translate(`resources.downloader.actions.${action}`, {
-                          _: action,
-                        })}
-                      </Button>
-                    ))
+                    <Box display="inline-flex" style={{ gap: 8 }}>
+                      {actionsFor(t).map((action) => (
+                        <Button
+                          key={action}
+                          size="small"
+                          variant={
+                            action === 'install' ? 'contained' : 'outlined'
+                          }
+                          color="primary"
+                          onClick={() => handleAction(t.tool, action)}
+                        >
+                          {translate(`resources.downloader.actions.${action}`, {
+                            _: action,
+                          })}
+                        </Button>
+                      ))}
+                    </Box>
                   )}
                 </TableCell>
               </TableRow>
