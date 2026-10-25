@@ -103,6 +103,10 @@ type EntryDataValuesTest struct {
 	description   string //nolint
 }
 
+// namedString stands in for named string types such as model.DownloadTool, whose Kind is
+// String but which aren't a plain string.
+type namedString string
+
 // Test that any occurrence of a redaction pattern
 // in the values of the entry's data fields is redacted.
 func TestEntryDataValues(t *testing.T) {
@@ -120,6 +124,20 @@ func TestEntryDataValues(t *testing.T) {
 			logFields:     logrus.Fields{"Description": "His name is William"},
 			expected:      logrus.Fields{"Description": "His name is [REDACTED]"},
 			description:   "William should have been redacted, but was not.",
+		},
+		{
+			name:          "named string type value",
+			redactionList: []string{"William"},
+			logFields:     logrus.Fields{"Description": namedString("His name is William")},
+			expected:      logrus.Fields{"Description": "His name is [REDACTED]"},
+			description:   "William should have been redacted from a named string type, but was not.",
+		},
+		{
+			name:          "named string type value without a match",
+			redactionList: []string{"William"},
+			logFields:     logrus.Fields{"tool": namedString("yt-dlp")},
+			expected:      logrus.Fields{"tool": namedString("yt-dlp")},
+			description:   "A named string type without a match should be left as is.",
 		},
 		{
 			name:          "map value",

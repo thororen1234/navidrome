@@ -72,8 +72,10 @@ type DownloadRepository interface {
 	// Requeue puts a failed or canceled job back at the end of the queue; false means it wasn't
 	// in a retryable state.
 	Requeue(ctx context.Context, id string) (bool, error)
-	// FailInterrupted marks every job left in downloading (by a crash or restart) as failed.
-	FailInterrupted(ctx context.Context, errMsg string) (int64, error)
+	// RecoverInterrupted handles jobs left in downloading by a crash or restart: each goes back
+	// on the queue (with requeueNote as its status message) and one more attempt counted, unless
+	// it has already used maxAttempts, in which case it fails with errMsg.
+	RecoverInterrupted(ctx context.Context, maxAttempts int, requeueNote, errMsg string) (requeued, failed int64, err error)
 	// DeleteFinished removes every completed, failed and canceled job.
 	DeleteFinished(ctx context.Context) (int64, error)
 	CountByStatus(ctx context.Context, status DownloadStatus) (int64, error)

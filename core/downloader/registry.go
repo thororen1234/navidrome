@@ -3,11 +3,13 @@ package downloader
 import (
 	"context"
 	"sync"
+
+	"github.com/navidrome/navidrome/utils/singleton"
 )
 
 // registry tracks cancel functions for jobs the Worker currently has running, so Service.Cancel
 // can stop a job that's already downloading - not just one still sitting in the queue. Shared
-// between Service and Worker (both hold the same *registry, injected via wire), it is the only
+// between Service and Worker (both hold the same *registry - see GetRegistry), it is the only
 // coupling between the two: Service never touches the DB for a running job's terminal status,
 // leaving that to the Worker itself once it observes the cancellation.
 //
@@ -22,6 +24,15 @@ type registry struct {
 	wake    chan struct{}
 }
 
+// GetRegistry returns the process-wide registry, which is what wire injects. It must be one
+// instance: wire builds every injector's graph separately, so with a plain constructor the
+// worker and each API router got their own registry - cancels never reached the running job
+// and submissions never woke the worker.
+func GetRegistry() *registry {
+	return singleton.GetInstance(NewRegistry)
+}
+
+// NewRegistry returns a fresh, unshared registry (for tests).
 func NewRegistry() *registry {
 	return &registry{
 		cancels: map[string]context.CancelFunc{},

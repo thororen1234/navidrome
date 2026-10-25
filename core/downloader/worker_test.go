@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/navidrome/navidrome/conf"
+	"github.com/navidrome/navidrome/conf/configtest"
 	"github.com/navidrome/navidrome/model"
 	"github.com/navidrome/navidrome/server/events"
 	"github.com/navidrome/navidrome/tests"
@@ -75,6 +76,12 @@ func (f *fakeTidal) DownloadTo(ctx context.Context, _, _ string, w io.Writer, on
 	return f.name, err
 }
 
+type panickyTidal struct{}
+
+func (panickyTidal) DownloadTo(context.Context, string, string, io.Writer, func(int64)) (string, error) {
+	panic("boom")
+}
+
 func zipOf(files map[string]string) []byte {
 	buf := &bytes.Buffer{}
 	zw := zip.NewWriter(buf)
@@ -95,6 +102,9 @@ var _ = Describe("Worker", func() {
 	var ctx context.Context
 
 	BeforeEach(func() {
+		DeferCleanup(configtest.SetupConfig())
+		// Jobs stage here; left unset, they'd stage relative to the package dir.
+		conf.Server.Downloader.StagingFolder = conf.NewDir(GinkgoT().TempDir())
 		libPath = GinkgoT().TempDir()
 		ds = &tests.MockDataStore{
 			MockedLibrary: &tests.MockLibraryRepo{Data: map[int]model.Library{1: {ID: 1, Path: libPath}}},
@@ -299,7 +309,7 @@ var _ = Describe("Worker", func() {
 			}
 		}
 
-		It("fails jobs left downloading by a previous run before starting", func() {
+		It("re-runs a job left downloading by a previous run", func() {
 			d := newDownload(model.DownloadToolTidal, "track")
 			_, err := ds.Download().ClaimNext(ctx) // simulate a crash mid-download
 			Expect(err).ToNot(HaveOccurred())
@@ -310,9 +320,26 @@ var _ = Describe("Worker", func() {
 			Eventually(func() model.DownloadStatus {
 				got, _ := ds.Download().Get(ctx, d.ID)
 				return got.Status
-			}).Should(Equal(model.DownloadStatusError))
+			}).Should(Equal(model.DownloadStatusCompleted))
+		})
+
+		It("gives up on a job that keeps getting interrupted", func() {
+			d := newDownload(model.DownloadToolTidal, "track")
+			_, err := ds.Download().ClaimNext(ctx)
+			Expect(err).ToNot(HaveOccurred())
 			got, _ := ds.Download().Get(ctx, d.ID)
-			Expect(got.Error).To(ContainSubstring("interrupted"))
+			got.Attempts = maxInterruptedAttempts - 1
+			ds.Download().(*tests.MockDownloadRepo).Data[d.ID] = *got
+
+			stop := run(NewWorker(ds, scanner, broker, &fakeTidal{content: []byte("x"), name: "x.flac"}, reg))
+			defer stop()
+
+			Eventually(func() model.DownloadStatus {
+				got, _ := ds.Download().Get(ctx, d.ID)
+				return got.Status
+			}).Should(Equal(model.DownloadStatusError))
+			got, _ = ds.Download().Get(ctx, d.ID)
+			Expect(got.Error).To(ContainSubstring("interrupted by 3 server restarts, the last at"))
 		})
 
 		It("picks up a submitted job immediately, without waiting for the poll interval", func() {
@@ -358,6 +385,22 @@ var _ = Describe("Worker", func() {
 				return got.Status
 			}, 2*time.Second).ShouldNot(Equal(model.DownloadStatusDownloading))
 		})
+	})
+
+	It("fails a job that panics instead of crashing the worker", func() {
+		w := NewWorker(ds, scanner, broker, &panickyTidal{}, reg)
+		d := newDownload(model.DownloadToolTidal, "track")
+
+		Expect(func() { w.process(ctx, d) }).ToNot(Panic())
+
+		got, err := ds.Download().Get(ctx, d.ID)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(got.Status).To(Equal(model.DownloadStatusError))
+		Expect(got.Error).To(ContainSubstring("internal error: boom"))
+	})
+
+	It("shares one registry between every service and worker wire builds", func() {
+		Expect(GetRegistry()).To(BeIdenticalTo(GetRegistry()))
 	})
 
 	It("fails when the target library no longer exists", func() {

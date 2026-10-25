@@ -114,6 +114,13 @@ func runExecJob(ctx context.Context, d *model.Download, outDir string, onProgres
 			lastMsg = strings.TrimSpace(line)
 		}
 	}
+	// Scan stops early on a line over its buffer limit (or a read error). Keep draining stdout
+	// regardless: an undrained pipe blocks the tool on its next write, and Wait would then hang
+	// until the job timeout, leaving the job stuck in "downloading".
+	if err := scanner.Err(); err != nil {
+		log.Debug(ctx, "Downloader: stopped parsing tool output", "tool", d.Tool, "id", d.ID, err)
+	}
+	_, _ = io.Copy(io.Discard, stdout)
 
 	if err := cmd.Wait(); err != nil {
 		detail := strings.TrimSpace(stderrBuf.String())

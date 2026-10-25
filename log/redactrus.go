@@ -47,7 +47,14 @@ func (h *Hook) Fire(e *logrus.Entry) error {
 			}
 			switch reflect.TypeOf(v).Kind() {
 			case reflect.String:
-				e.Data[k] = re.ReplaceAllString(v.(string), "$1[REDACTED]$2")
+				// Read it through reflect rather than v.(string): the Kind is also String for
+				// named string types (e.g. model.DownloadTool), where the type assertion panics,
+				// crashing whichever goroutine logged it. Only an actual redaction replaces the
+				// value, so a named type keeps its type otherwise.
+				s := reflect.ValueOf(v).String()
+				if r := re.ReplaceAllString(s, "$1[REDACTED]$2"); r != s {
+					e.Data[k] = r
+				}
 				continue
 			case reflect.Map:
 				s := fmt.Sprintf("%+v", v)

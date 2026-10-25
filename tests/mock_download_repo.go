@@ -191,23 +191,32 @@ func (m *MockDownloadRepo) Requeue(_ context.Context, downloadID string) (bool, 
 	return true, nil
 }
 
-func (m *MockDownloadRepo) FailInterrupted(_ context.Context, errMsg string) (int64, error) {
+func (m *MockDownloadRepo) RecoverInterrupted(_ context.Context, maxAttempts int, requeueNote, errMsg string) (int64, int64, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.Err != nil {
-		return 0, m.Err
+		return 0, 0, m.Err
 	}
-	var n int64
+	var requeued, failed int64
 	for id, d := range m.Data {
-		if d.Status == model.DownloadStatusDownloading {
+		if d.Status != model.DownloadStatusDownloading {
+			continue
+		}
+		if d.Attempts < maxAttempts-1 {
+			d.Status = model.DownloadStatusQueued
+			d.Progress = 0
+			d.StatusMessage = requeueNote
+			d.StartedAt = nil
+			requeued++
+		} else {
 			d.Status = model.DownloadStatusError
 			d.Error = errMsg
-			d.Attempts++
-			m.Data[id] = d
-			n++
+			failed++
 		}
+		d.Attempts++
+		m.Data[id] = d
 	}
-	return n, nil
+	return requeued, failed, nil
 }
 
 func (m *MockDownloadRepo) DeleteFinished(_ context.Context) (int64, error) {

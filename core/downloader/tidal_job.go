@@ -50,6 +50,9 @@ func (w *Worker) runTidalJob(ctx context.Context, d *model.Download, targetDir s
 	if err != nil {
 		return 0, "", err
 	}
+	// Runs before the staging RemoveAll (defers are LIFO) even if DownloadTo panics: an open
+	// file can't be deleted on Windows, and would leak the handle everywhere.
+	defer func() { _ = raw.Close() }()
 	pw := &progressWriter{w: raw, total: -1, report: onProgress}
 	filename, dlErr := w.tidal.DownloadTo(ctx, d.TidalID, d.TidalKind, pw, func(total int64) { pw.total = total })
 	closeErr := raw.Close()

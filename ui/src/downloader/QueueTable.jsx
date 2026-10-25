@@ -17,18 +17,30 @@ import {
   Typography,
   Box,
 } from '@material-ui/core'
+import { makeStyles } from '@material-ui/core/styles'
 import CancelIcon from '@material-ui/icons/Cancel'
 import ReplayIcon from '@material-ui/icons/Replay'
 import { httpClient } from '../dataProvider'
 import { errorMessage } from './errorMessage'
 
-const STATUS_COLORS = {
-  queued: 'default',
-  downloading: 'primary',
-  completed: 'primary',
-  error: 'secondary',
-  canceled: 'default',
-}
+// Each status gets an explicit palette color with its contrast text, rather than MUI's
+// primary/secondary chip colors: themes are free to make "secondary" white (several do), which
+// left error chips as blank white pills.
+const statusChip = (theme, color) => ({
+  backgroundColor: color,
+  color: theme.palette.getContrastText(color),
+})
+
+const useStyles = makeStyles(
+  (theme) => ({
+    queued: {},
+    canceled: {},
+    downloading: statusChip(theme, theme.palette.info.main),
+    completed: statusChip(theme, theme.palette.success.main),
+    error: statusChip(theme, theme.palette.error.main),
+  }),
+  { name: 'NDDownloaderQueue' },
+)
 
 const ACTIVE = ['queued', 'downloading']
 const RETRYABLE = ['error', 'canceled']
@@ -45,6 +57,7 @@ const formatTime = (iso) => {
 }
 
 const QueueTable = ({ tableRef }) => {
+  const classes = useStyles()
   const translate = useTranslate()
   const notify = useNotify()
   const allLiveJobs = useSelector((state) => state.downloader?.jobs || {})
@@ -204,7 +217,7 @@ const QueueTable = ({ tableRef }) => {
                         `resources.downloader.status.${job.status}`,
                         { _: job.status },
                       )}
-                      color={STATUS_COLORS[job.status] || 'default'}
+                      className={classes[job.status]}
                     />
                   </TableCell>
                   <TableCell style={{ minWidth: 120 }}>

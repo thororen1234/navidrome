@@ -147,14 +147,29 @@ func (r *downloadRepository) Requeue(ctx context.Context, id string) (bool, erro
 	return n > 0, err
 }
 
-func (r *downloadRepository) FailInterrupted(ctx context.Context, errMsg string) (int64, error) {
-	upd := Update(r.tableName).
+func (r *downloadRepository) RecoverInterrupted(ctx context.Context, maxAttempts int, requeueNote, errMsg string) (int64, int64, error) {
+	now := time.Now()
+	requeue := Update(r.tableName).
+		Set("status", model.DownloadStatusQueued).
+		Set("progress", 0).
+		Set("status_message", requeueNote).
+		Set("attempts", Expr("attempts + 1")).
+		Set("started_at", nil).
+		Set("updated_at", now).
+		Where(Eq{"status": model.DownloadStatusDownloading}).
+		Where(Lt{"attempts": maxAttempts - 1})
+	requeued, err := r.executeSQL(ctx, requeue)
+	if err != nil {
+		return 0, 0, err
+	}
+	fail := Update(r.tableName).
 		Set("status", model.DownloadStatusError).
 		Set("error", errMsg).
 		Set("attempts", Expr("attempts + 1")).
-		Set("updated_at", time.Now()).
+		Set("updated_at", now).
 		Where(Eq{"status": model.DownloadStatusDownloading})
-	return r.executeSQL(ctx, upd)
+	failed, err := r.executeSQL(ctx, fail)
+	return requeued, failed, err
 }
 
 func (r *downloadRepository) DeleteFinished(ctx context.Context) (int64, error) {

@@ -155,7 +155,7 @@ var _ = Describe("DownloadRepository", func() {
 		Expect(ok).To(BeFalse())
 	})
 
-	It("fails jobs left downloading by a previous run", func() {
+	It("requeues jobs left downloading by a previous run", func() {
 		d := job(model.DownloadToolYtDlp, "https://example.com/orphan")
 		Expect(repo.Enqueue(ctx, d)).To(Succeed())
 		_, err := repo.ClaimNext(ctx)
@@ -163,14 +163,40 @@ var _ = Describe("DownloadRepository", func() {
 		queued := job(model.DownloadToolYtDlp, "https://example.com/queued")
 		Expect(repo.Enqueue(ctx, queued)).To(Succeed())
 
-		n, err := repo.FailInterrupted(ctx, "interrupted")
+		requeued, failed, err := repo.RecoverInterrupted(ctx, 3, "queued again", "interrupted too often")
 		Expect(err).ToNot(HaveOccurred())
-		Expect(n).To(Equal(int64(1)))
+		Expect(requeued).To(Equal(int64(1)))
+		Expect(failed).To(Equal(int64(0)))
 		got, _ := repo.Get(ctx, d.ID)
-		Expect(got.Status).To(Equal(model.DownloadStatusError))
-		Expect(got.Error).To(Equal("interrupted"))
+		Expect(got.Status).To(Equal(model.DownloadStatusQueued))
+		Expect(got.StatusMessage).To(Equal("queued again"))
+		Expect(got.Attempts).To(Equal(1))
 		got, _ = repo.Get(ctx, queued.ID)
 		Expect(got.Status).To(Equal(model.DownloadStatusQueued))
+		Expect(got.Attempts).To(Equal(0), "jobs that weren't running are untouched")
+	})
+
+	It("fails an interrupted job once it has used up its attempts", func() {
+		d := job(model.DownloadToolYtDlp, "https://example.com/crashy")
+		Expect(repo.Enqueue(ctx, d)).To(Succeed())
+		for range 2 { // two restarts mid-download: requeued each time
+			_, err := repo.ClaimNext(ctx)
+			Expect(err).ToNot(HaveOccurred())
+			requeued, _, err := repo.RecoverInterrupted(ctx, 3, "queued again", "interrupted too often")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(requeued).To(Equal(int64(1)))
+		}
+		_, err := repo.ClaimNext(ctx)
+		Expect(err).ToNot(HaveOccurred())
+
+		requeued, failed, err := repo.RecoverInterrupted(ctx, 3, "queued again", "interrupted too often")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(requeued).To(Equal(int64(0)))
+		Expect(failed).To(Equal(int64(1)))
+		got, _ := repo.Get(ctx, d.ID)
+		Expect(got.Status).To(Equal(model.DownloadStatusError))
+		Expect(got.Error).To(Equal("interrupted too often"))
+		Expect(got.Attempts).To(Equal(3))
 	})
 
 	It("deletes only finished jobs", func() {

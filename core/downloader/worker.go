@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -23,6 +24,8 @@ const (
 	// lines a second, and each one would otherwise cost a DB write and an SSE broadcast.
 	progressMinInterval = time.Second
 	progressMinDelta    = 0.01
+	// maxInterruptedAttempts caps how often a job cut off by a restart is automatically re-run.
+	maxInterruptedAttempts = 3
 )
 
 // Worker drains the download queue, running up to concurrency jobs at once, dispatched to
@@ -55,11 +58,19 @@ func NewWorker(ds model.DataStore, scanner model.Scanner, broker events.Broker, 
 func (w *Worker) Run(ctx context.Context) error {
 	ctx = auth.WithAdminUser(ctx, w.ds)
 	// Nothing can still be running at startup: anything left "downloading" was cut off by a crash
-	// or restart, and would otherwise sit there forever, uncancelable and never retried.
-	if n, err := w.ds.Download().FailInterrupted(ctx, "interrupted by a server restart"); err != nil {
-		log.Warn(ctx, "Downloader: could not reset interrupted jobs", err)
-	} else if n > 0 {
-		log.Warn(ctx, "Downloader: marked jobs interrupted by a restart as failed", "count", n)
+	// or restart, and would otherwise sit there forever, uncancelable and never retried. That's
+	// not the job's fault, so it is queued again - but only up to maxInterruptedAttempts, so a
+	// job that itself takes the server down can't put it in a restart loop.
+	// The stamp says when this process started, so an unexpected restart can be matched against
+	// the server/container logs (a crash, an OOM kill, an image auto-update...).
+	startedAt := time.Now().Format(time.DateTime)
+	requeued, failed, err := w.ds.Download().RecoverInterrupted(ctx, maxInterruptedAttempts,
+		"queued again: Navidrome restarted at "+startedAt+" while this was downloading",
+		fmt.Sprintf("interrupted by %d server restarts, the last at %s", maxInterruptedAttempts, startedAt))
+	if err != nil {
+		log.Warn(ctx, "Downloader: could not recover interrupted jobs", err)
+	} else if requeued+failed > 0 {
+		log.Warn(ctx, "Downloader: found jobs interrupted by a restart", "requeued", requeued, "failed", failed)
 	}
 
 	ticker := time.NewTicker(workerPollInterval)
@@ -96,7 +107,17 @@ func (w *Worker) Run(ctx context.Context) error {
 
 // process runs one job the worker has already claimed (ClaimNext moved it to downloading).
 func (w *Worker) process(ctx context.Context, item model.Download) {
-	log.Info(ctx, "Downloader: starting job", "id", item.ID, "tool", item.Tool, "libraryId", item.LibraryID)
+	// A bug in one job must fail that job, not crash the server: an unrecovered panic in this
+	// goroutine would kill the process, and the job would then show up as "interrupted by a
+	// server restart" with no hint of what went wrong.
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error(ctx, "Downloader: job panicked", "id", item.ID, "panic", r, "stack", string(debug.Stack()))
+			w.fail(ctx, item.ID, fmt.Errorf("internal error: %v", r))
+		}
+	}()
+	log.Info(ctx, "Downloader: starting job", "id", item.ID, "tool", item.Tool, "source", item.SourceURL,
+		"tidalId", item.TidalID, "libraryId", item.LibraryID, "attempt", item.Attempts+1)
 	w.broadcast(ctx, item.ID, model.DownloadStatusDownloading, 0, "", "")
 
 	// jobCtx (not ctx) is what actually runs the download, so a cancellation request or timeout

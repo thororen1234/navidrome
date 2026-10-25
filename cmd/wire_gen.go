@@ -85,7 +85,7 @@ func CreateNativeAPIRouter(ctx context.Context) *nativeapi.Router {
 	matcherMatcher := matcher.New(dataStore)
 	provider := external.NewProvider(dataStore, agentsAgents, matcherMatcher, broker)
 	quickConnect := quickconnect.GetInstance()
-	registry := downloader.NewRegistry()
+	registry := downloader.GetRegistry()
 	service := downloader.NewService(dataStore, registry)
 	toolmgrManager := toolmgr.New()
 	client := tidal.New()
@@ -261,7 +261,7 @@ func CreateDownloadWorker(ctx context.Context) *downloader.Worker {
 	metricsMetrics := metrics.GetPrometheusInstance(dataStore)
 	modelScanner := scanner.GetInstance(ctx, dataStore, broker, playlistsPlaylists, metricsMetrics)
 	client := tidal.New()
-	registry := downloader.NewRegistry()
+	registry := downloader.GetRegistry()
 	worker := downloader.NewWorker(dataStore, modelScanner, broker, client, registry)
 	return worker
 }
@@ -269,7 +269,7 @@ func CreateDownloadWorker(ctx context.Context) *downloader.Worker {
 func CreateDownloaderService() downloader.Service {
 	sqlDB := db.Db()
 	dataStore := persistence.New(sqlDB)
-	registry := downloader.NewRegistry()
+	registry := downloader.GetRegistry()
 	service := downloader.NewService(dataStore, registry)
 	return service
 }
