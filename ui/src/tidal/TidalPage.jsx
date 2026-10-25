@@ -11,6 +11,7 @@ import {
   TextField,
   Typography,
 } from '@material-ui/core'
+import { makeStyles } from '@material-ui/core/styles'
 import SearchIcon from '@material-ui/icons/Search'
 import ArrowBackIcon from '@material-ui/icons/ArrowBack'
 import { httpClient } from '../dataProvider'
@@ -23,6 +24,18 @@ import {
   SectionTitle,
   TrackTable,
 } from './TidalViews'
+
+// Same inset as the native album grid (album/AlbumGridView's 20px margin), so the page doesn't
+// run flush against the sidebar and the window edge.
+const useStyles = makeStyles(
+  (theme) => ({
+    root: {
+      padding: '0 20px',
+      [theme.breakpoints.down('xs')]: { padding: '0 8px' },
+    },
+  }),
+  { name: 'NDTidalPage' },
+)
 
 // Tidal returns every single and EP as an "album"; splitting by track count keeps an artist's
 // real albums from drowning in dozens of one-track releases. An unknown count counts as an
@@ -203,6 +216,7 @@ const AlbumView = ({ album, onOpenArtist }) => {
 }
 
 const TidalPage = () => {
+  const classes = useStyles()
   const translate = useTranslate()
   const notify = useNotify()
   const dispatch = useDispatch()
@@ -238,7 +252,7 @@ const TidalPage = () => {
       )
 
   return (
-    <Box mt={2} mb={4}>
+    <Box mt={2} mb={4} className={classes.root}>
       <Title
         title={'Navidrome - ' + translate('menu.tidal', { _: 'Tidal Library' })}
       />
