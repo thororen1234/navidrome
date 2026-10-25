@@ -299,6 +299,11 @@ type downloaderOptions struct {
 	MaxConcurrent  int
 	StagingFolder  Dir
 	YtDlpPath      string // "" = resolve "yt-dlp" on PATH
+	// YtDlpCookiesFile is a Netscape-format cookies.txt exported from a browser logged in to
+	// YouTube, passed to yt-dlp as --cookies. Needed when YouTube answers "Sign in to confirm
+	// you're not a bot", which it does for many server/VPS IPs. yt-dlp rewrites the file, so it
+	// must be writable (e.g. somewhere under the data folder).
+	YtDlpCookiesFile string
 	ScdlPath       string // "" = resolve "scdl" on PATH
 	SpotdlPath     string // "" = resolve "spotdl" on PATH
 	BandcampDlPath string // "" = resolve "bandcamp-dl" on PATH (pip package: bandcamp-downloader)
@@ -1156,6 +1161,7 @@ func setViperDefaults() {
 	viper.SetDefault("downloader.maxconcurrent", 2)
 	viper.SetDefault("downloader.stagingfolder", "")
 	viper.SetDefault("downloader.ytdlppath", "")
+	viper.SetDefault("downloader.ytdlpcookiesfile", "")
 	viper.SetDefault("downloader.scdlpath", "")
 	viper.SetDefault("downloader.spotdlpath", "")
 	viper.SetDefault("downloader.bandcampdlpath", "")

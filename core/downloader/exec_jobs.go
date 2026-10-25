@@ -57,8 +57,12 @@ func buildArgs(tool model.DownloadTool, bin, sourceURL, outDir string) []string 
 		outTemplate := filepath.Join(outDir, "%(title)s.%(ext)s")
 		// --embed-metadata writes title/artist/album tags, without which the scanner files
 		// everything under "Unknown Artist"; --no-mtime keeps the files' mtime at download time.
-		return []string{bin, "-x", "--audio-format", "mp3", "--audio-quality", "0",
-			"--embed-metadata", "--no-mtime", "--newline", "-o", outTemplate, sourceURL}
+		args := []string{bin, "-x", "--audio-format", "mp3", "--audio-quality", "0",
+			"--embed-metadata", "--no-mtime", "--newline", "-o", outTemplate}
+		if cookies := conf.Server.Downloader.YtDlpCookiesFile; cookies != "" {
+			args = append(args, "--cookies", cookies)
+		}
+		return append(args, sourceURL)
 	case model.DownloadToolScdl:
 		return []string{bin, "-l", sourceURL, "--path", outDir, "--onlymp3"}
 	case model.DownloadToolSpotdl:
@@ -123,7 +127,7 @@ func runExecJob(ctx context.Context, d *model.Download, outDir string, onProgres
 	_, _ = io.Copy(io.Discard, stdout)
 
 	if err := cmd.Wait(); err != nil {
-		detail := strings.TrimSpace(stderrBuf.String())
+		detail := errorDetail(stderrBuf.String())
 		if detail == "" {
 			detail = lastMsg
 		}
@@ -133,6 +137,22 @@ func runExecJob(ctx context.Context, d *model.Download, outDir string, onProgres
 		return fmt.Errorf("%s failed: %w", d.Tool, err)
 	}
 	return nil
+}
+
+// errorDetail picks what to report from a failed tool's stderr. yt-dlp in particular prints a
+// page of WARNING lines before the ERROR that actually explains the failure, so its ERROR lines
+// win when there are any; otherwise the whole (trimmed) stderr is used.
+func errorDetail(stderr string) string {
+	var errs []string
+	for line := range strings.SplitSeq(stderr, "\n") {
+		if line = strings.TrimSpace(line); strings.HasPrefix(line, "ERROR:") {
+			errs = append(errs, line)
+		}
+	}
+	if len(errs) > 0 {
+		return strings.Join(errs, " ")
+	}
+	return strings.TrimSpace(stderr)
 }
 
 // tailBuffer keeps only the last limit bytes written to it, so a chatty subprocess can't grow

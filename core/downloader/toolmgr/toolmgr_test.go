@@ -19,7 +19,7 @@ func TestToolmgr(t *testing.T) {
 var _ = Describe("argsForAction", func() {
 	DescribeTable("pip mode",
 		func(action Action, expected []string) {
-			Expect(argsForAction(action, "yt-dlp", false)).To(Equal(expected))
+			Expect(argsForAction(action, "yt-dlp", "", false)).To(Equal(expected))
 		},
 		Entry("install", ActionInstall, []string{"install", "-U", "yt-dlp"}),
 		Entry("upgrade", ActionUpgrade, []string{"install", "-U", "yt-dlp"}),
@@ -28,22 +28,34 @@ var _ = Describe("argsForAction", func() {
 
 	DescribeTable("pipx mode",
 		func(action Action, expected []string) {
-			Expect(argsForAction(action, "yt-dlp", true)).To(Equal(expected))
+			Expect(argsForAction(action, "yt-dlp", "", true)).To(Equal(expected))
 		},
 		Entry("install", ActionInstall, []string{"install", "yt-dlp"}),
 		Entry("upgrade", ActionUpgrade, []string{"upgrade", "yt-dlp"}),
 		Entry("repair", ActionRepair, []string{"reinstall", "yt-dlp"}),
 	)
 
+	DescribeTable("with extras",
+		func(action Action, usePipx bool, expected []string) {
+			Expect(argsForAction(action, "yt-dlp", "default", usePipx)).To(Equal(expected))
+		},
+		Entry("pip install", ActionInstall, false, []string{"install", "-U", "yt-dlp[default]"}),
+		Entry("pip repair", ActionRepair, false, []string{"install", "--force-reinstall", "yt-dlp[default]"}),
+		Entry("pipx install", ActionInstall, true, []string{"install", "yt-dlp[default]"}),
+		// pipx upgrade/reinstall want the venv name; they reuse the recorded extras.
+		Entry("pipx upgrade", ActionUpgrade, true, []string{"upgrade", "yt-dlp"}),
+		Entry("pipx repair", ActionRepair, true, []string{"reinstall", "yt-dlp"}),
+	)
+
 	It("never derives the package name from anything but the fixed lookup table", func() {
 		for tool, pkg := range pipPackages {
-			args := argsForAction(ActionInstall, pkg, false)
-			Expect(args).To(ContainElement(pkg), "tool %s", tool)
+			args := argsForAction(ActionInstall, pkg, pipExtras[tool], false)
+			Expect(args[len(args)-1]).To(HavePrefix(pkg), "tool %s", tool)
 		}
 	})
 
 	It("returns nil for an unknown action", func() {
-		Expect(argsForAction(Action("bogus"), "yt-dlp", false)).To(BeNil())
+		Expect(argsForAction(Action("bogus"), "yt-dlp", "", false)).To(BeNil())
 	})
 })
 

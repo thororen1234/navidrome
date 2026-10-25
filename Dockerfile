@@ -202,8 +202,12 @@ RUN mpv --no-video --ao=null --version > /dev/null
 ENV PIPX_HOME=/usr/local/pipx
 ENV PIPX_BIN_DIR=/usr/local/bin
 ENV ND_DOWNLOADER_USEPIPX=true
-RUN apk add -U --no-cache python3 py3-pip pipx && \
-    pipx install yt-dlp && \
+# YouTube now needs yt-dlp to run its player JavaScript (EJS): yt-dlp[default] pulls in the
+# yt-dlp-ejs scripts, and nodejs (>= 22) runs them. yt-dlp only enables deno on its own, so the
+# system config (/etc/yt-dlp.conf) turns node on.
+RUN apk add -U --no-cache python3 py3-pip pipx nodejs && \
+    echo "--js-runtimes node" > /etc/yt-dlp.conf && \
+    pipx install "yt-dlp[default]" && \
     pipx install scdl && \
     pipx install spotdl && \
     pipx install bandcamp-downloader && \

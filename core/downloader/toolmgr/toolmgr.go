@@ -30,6 +30,13 @@ var pipPackages = map[model.DownloadTool]string{
 	model.DownloadToolKhinsider:  "khinsider-dl",
 }
 
+// pipExtras are optional dependency sets installed alongside a package. yt-dlp's "default"
+// extra brings yt-dlp-ejs, the scripts it runs (under a JS runtime such as node) to get past
+// YouTube's JavaScript challenges; without it YouTube downloads fail or lose formats.
+var pipExtras = map[model.DownloadTool]string{
+	model.DownloadToolYtDlp: "default",
+}
+
 type Action string
 
 const (
@@ -89,7 +96,7 @@ func (m *manager) Run(ctx context.Context, tool model.DownloadTool, action Actio
 	if err != nil {
 		return err
 	}
-	args := argsForAction(action, pkg, usePipx)
+	args := argsForAction(action, pkg, pipExtras[tool], usePipx)
 	if args == nil {
 		return fmt.Errorf("unknown action %q", action)
 	}
@@ -103,12 +110,18 @@ func (m *manager) Run(ctx context.Context, tool model.DownloadTool, action Actio
 }
 
 // argsForAction returns the fixed argv (excluding the binary itself) for a pip/pipx action.
-// pkg always comes from pipPackages, never from caller input.
-func argsForAction(action Action, pkg string, usePipx bool) []string {
+// pkg and extras always come from pipPackages/pipExtras, never from caller input. pip takes the
+// extras on every install; pipx only on "install" - "upgrade" and "reinstall" take the bare venv
+// name and reuse the spec (extras included) that pipx recorded when it was installed.
+func argsForAction(action Action, pkg, extras string, usePipx bool) []string {
+	spec := pkg
+	if extras != "" {
+		spec = pkg + "[" + extras + "]"
+	}
 	if usePipx {
 		switch action {
 		case ActionInstall:
-			return []string{"install", pkg}
+			return []string{"install", spec}
 		case ActionUpgrade:
 			return []string{"upgrade", pkg}
 		case ActionRepair:
@@ -118,9 +131,9 @@ func argsForAction(action Action, pkg string, usePipx bool) []string {
 	}
 	switch action {
 	case ActionInstall, ActionUpgrade:
-		return []string{"install", "-U", pkg}
+		return []string{"install", "-U", spec}
 	case ActionRepair:
-		return []string{"install", "--force-reinstall", pkg}
+		return []string{"install", "--force-reinstall", spec}
 	}
 	return nil
 }
