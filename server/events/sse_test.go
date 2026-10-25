@@ -45,6 +45,17 @@ var _ = Describe("Broker", func() {
 				Expect(b.shouldSend(m, c)).To(BeFalse())
 			})
 		})
+		Context("admin-only events", func() {
+			It("does not send a broadcast admin-only event to a regular user", func() {
+				m := message{senderCtx: broadcastToAll(AdminOnly(ctx))}
+				Expect(b.shouldSend(m, c)).To(BeFalse())
+			})
+			It("sends a broadcast admin-only event to an admin", func() {
+				c.isAdmin = true
+				m := message{senderCtx: broadcastToAll(AdminOnly(ctx))}
+				Expect(b.shouldSend(m, c)).To(BeTrue())
+			})
+		})
 		Context("request does not have clientUniqueId", func() {
 			It("sends message for same username", func() {
 				ctx = request.WithUsername(ctx, "janedoe")

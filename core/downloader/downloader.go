@@ -55,6 +55,16 @@ func (s *service) Submit(ctx context.Context, req SubmitRequest) (*model.Downloa
 	if _, err := s.ds.Library().Get(ctx, req.LibraryID); err != nil {
 		return nil, fmt.Errorf("%w: library %d: %w", ErrInvalidRequest, req.LibraryID, err)
 	}
+	// Reject a job for a library it could never be saved to right away, rather than letting the
+	// user find out only after the download ran. The worker checks again when the job starts.
+	probe := &model.Download{Tool: req.Tool, LibraryID: req.LibraryID}
+	targetDir, err := resolveTargetDir(ctx, s.ds, probe)
+	if err == nil {
+		err = ensureWritableDir(targetDir)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrInvalidRequest, err)
+	}
 	d := &model.Download{
 		Tool:        req.Tool,
 		SourceURL:   req.SourceURL,

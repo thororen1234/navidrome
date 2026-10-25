@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/navidrome/navidrome/conf"
@@ -93,7 +95,7 @@ var _ = Describe("Downloader API", func() {
 		conf.Server.EnableSharing = false
 		conf.Server.Downloader.Enabled = true
 		ds = &tests.MockDataStore{MockedLibrary: &tests.MockLibraryRepo{
-			Data: map[int]model.Library{1: {ID: 1, Name: "Music", Path: "/music"}},
+			Data: map[int]model.Library{1: {ID: 1, Name: "Music", Path: GinkgoT().TempDir()}},
 		}}
 		toolMgr = &fakeToolManager{status: []toolmgr.ToolStatus{{Tool: model.DownloadToolYtDlp, Installed: true, Version: "2024.01.01"}}}
 		broker = &recordingBroker{}
@@ -154,6 +156,22 @@ var _ = Describe("Downloader API", func() {
 		got, err := ds.Download().Get(context.Background(), created.ID)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(got.Status).To(Equal(model.DownloadStatusCanceled))
+	})
+
+	It("rejects a submission for a library it can't write to", func() {
+		// A file where the library's Downloads folder should go makes it unwritable on any OS,
+		// standing in for a read-only mount.
+		libPath := GinkgoT().TempDir()
+		Expect(os.WriteFile(filepath.Join(libPath, "Downloads"), nil, 0600)).To(Succeed())
+		ds.MockedLibrary.(*tests.MockLibraryRepo).Data[2] = model.Library{ID: 2, Name: "RO", Path: libPath}
+
+		w := doRequest("POST", "/download", map[string]any{
+			"tool": "yt-dlp", "sourceUrl": "https://example.com/video", "libraryId": 2,
+		}, adminToken)
+		Expect(w.Code).To(Equal(http.StatusBadRequest))
+		Expect(w.Body.String()).To(ContainSubstring("can't write downloads to"))
+		all, _ := ds.Download().GetAll(context.Background())
+		Expect(all).To(BeEmpty())
 	})
 
 	It("rejects canceling a job that is not queued", func() {

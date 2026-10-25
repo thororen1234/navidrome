@@ -103,7 +103,7 @@ var _ = Describe("Tidal API", func() {
 		conf.Server.Tidal.AllowDownload = true
 		conf.Server.Downloader.Enabled = true
 		ds = &tests.MockDataStore{MockedLibrary: &tests.MockLibraryRepo{
-			Data: map[int]model.Library{1: {ID: 1, Name: "Music", Path: "/music"}},
+			Data: map[int]model.Library{1: {ID: 1, Name: "Music", Path: GinkgoT().TempDir()}},
 		}}
 		fakeTidal = &fakeTidalClient{}
 		auth.Init(ds)

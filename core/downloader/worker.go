@@ -137,6 +137,9 @@ func (w *Worker) process(ctx context.Context, item model.Download) {
 	}()
 
 	targetDir, err := resolveTargetDir(ctx, w.ds, &item)
+	if err == nil {
+		err = ensureWritableDir(targetDir)
+	}
 	if err != nil {
 		w.fail(ctx, item.ID, err)
 		return
@@ -226,7 +229,8 @@ func (w *Worker) markCanceled(ctx context.Context, id string) {
 }
 
 func (w *Worker) broadcast(ctx context.Context, id string, status model.DownloadStatus, pct float64, msg, errMsg string) {
-	w.broker.SendBroadcastMessage(ctx, &events.DownloadStatus{
+	// Admin-only: the Downloader is, and job status carries source URLs, paths and tool errors.
+	w.broker.SendBroadcastMessage(events.AdminOnly(ctx), &events.DownloadStatus{
 		ID: id, Status: string(status), Progress: pct, StatusMessage: msg, Error: errMsg,
 	})
 }

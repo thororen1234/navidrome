@@ -160,13 +160,15 @@ func (api *Router) runToolAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	api.broker.SendBroadcastMessage(ctx, &events.ToolInstallStatus{Tool: toolName, Action: actionName, Running: true})
+	// Admin-only like the rest of the Downloader: a failure carries pip's output.
+	evtCtx := events.AdminOnly(ctx)
+	api.broker.SendBroadcastMessage(evtCtx, &events.ToolInstallStatus{Tool: toolName, Action: actionName, Running: true})
 	runErr := api.toolMgr.Run(ctx, model.DownloadTool(toolName), action)
 	result := &events.ToolInstallStatus{Tool: toolName, Action: actionName, Running: false}
 	if runErr != nil {
 		result.Error = runErr.Error()
 	}
-	api.broker.SendBroadcastMessage(ctx, result)
+	api.broker.SendBroadcastMessage(evtCtx, result)
 
 	if runErr != nil {
 		log.Error(ctx, "Error running downloader tool action", "tool", toolName, "action", actionName, runErr)

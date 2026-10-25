@@ -403,6 +403,22 @@ var _ = Describe("Worker", func() {
 		Expect(GetRegistry()).To(BeIdenticalTo(GetRegistry()))
 	})
 
+	It("fails before downloading when the library can't be written to", func() {
+		// A file where the Downloads folder should go stands in for a read-only mount.
+		Expect(os.WriteFile(filepath.Join(libPath, "Downloads"), nil, 0600)).To(Succeed())
+		started := make(chan struct{})
+		w := NewWorker(ds, scanner, broker, &fakeTidal{started: started, content: []byte("x")}, reg)
+		d := newDownload(model.DownloadToolTidal, "track")
+
+		w.process(ctx, d)
+
+		got, err := ds.Download().Get(ctx, d.ID)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(got.Status).To(Equal(model.DownloadStatusError))
+		Expect(got.Error).To(ContainSubstring("can't write downloads to"))
+		Expect(started).ToNot(BeClosed(), "nothing should be downloaded")
+	})
+
 	It("fails when the target library no longer exists", func() {
 		w := NewWorker(ds, scanner, broker, &fakeTidal{content: []byte("x"), name: "x.flac"}, reg)
 		d := model.Download{Tool: model.DownloadToolTidal, TidalKind: "track", LibraryID: 99, RequestedBy: "admin"}

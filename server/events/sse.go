@@ -42,6 +42,7 @@ type (
 		id             string
 		address        string
 		username       string
+		isAdmin        bool
 		userAgent      string
 		clientUniqueId string
 		displayString  string
@@ -172,6 +173,7 @@ func (b *broker) subscribe(r *http.Request) client {
 	c := client{
 		id:             id.NewRandom(),
 		username:       user.UserName,
+		isAdmin:        user.IsAdmin,
 		address:        r.RemoteAddr,
 		userAgent:      r.UserAgent(),
 		clientUniqueId: clientUniqueId,
@@ -194,6 +196,9 @@ func (b *broker) unsubscribe(c client) {
 }
 
 func (b *broker) shouldSend(msg message, c client) bool {
+	if adminOnly, _ := msg.senderCtx.Value(adminOnlyKey).(bool); adminOnly && !c.isAdmin {
+		return false
+	}
 	if broadcastToAll, ok := msg.senderCtx.Value(broadcastToAllKey).(bool); ok && broadcastToAll {
 		return true
 	}

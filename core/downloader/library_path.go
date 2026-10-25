@@ -47,6 +47,26 @@ func resolveTargetDir(ctx context.Context, ds model.DataStore, d *model.Download
 	return filepath.Join(libPath, downloadsSubfolder, string(d.Tool)), nil
 }
 
+// ensureWritableDir creates dir if needed and proves it can be written to, by creating and
+// removing a probe file. Checking up front (rather than when moving the finished files in)
+// means a read-only library - Navidrome's own docker-compose example mounts /music with :ro -
+// fails fast, instead of after a download that then gets thrown away.
+func ensureWritableDir(dir string) error {
+	err := os.MkdirAll(dir, 0755)
+	if err == nil {
+		var f *os.File
+		if f, err = os.CreateTemp(dir, ".navidrome-write-test-*"); err == nil {
+			_ = f.Close()
+			_ = os.Remove(f.Name())
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("can't write downloads to %s (%w): mount that library read-write, "+
+			"or add a writable library for downloads and pick that one", dir, err)
+	}
+	return nil
+}
+
 // stagingDirFor returns a per-job scratch directory, outside any library, that a tool downloads
 // into. Writing here first (rather than straight into the library) means an interrupted or
 // failed download never leaves a partial file where a concurrent scan could pick it up.

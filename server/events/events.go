@@ -11,11 +11,21 @@ import (
 
 type eventCtxKey string
 
-const broadcastToAllKey eventCtxKey = "broadcastToAll"
+const (
+	broadcastToAllKey eventCtxKey = "broadcastToAll"
+	adminOnlyKey      eventCtxKey = "adminOnly"
+)
 
 // broadcastToAll is a context key that can be used to broadcast an event to all clients
 func broadcastToAll(ctx context.Context) context.Context {
 	return context.WithValue(ctx, broadcastToAllKey, true)
+}
+
+// AdminOnly marks ctx so an event sent with it only reaches admin users' clients, even when
+// broadcast - for events about admin-only features (e.g. the Downloader), whose payloads carry
+// details (source URLs, server paths, tool output) other users shouldn't receive.
+func AdminOnly(ctx context.Context) context.Context {
+	return context.WithValue(ctx, adminOnlyKey, true)
 }
 
 type Event interface {
